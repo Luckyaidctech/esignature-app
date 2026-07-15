@@ -3,8 +3,8 @@ import { Icon, Header, SectionHead, initials, ResultPopup, ReasonModal } from '.
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
 import { nameOf, colorOf, progress, isMyTurn, avatarOf } from './data.js'
 
-// ໄຟລ໌ຕົວຢ່າງ (mock) — ຄລິກໄຟລ໌ → ເປີດເບິ່ງ PDF ຈິງ
-const SAMPLE_PDFS = ['/sample.pdf', '/super-work-agreement.pdf', '/super-work-invitation.pdf']
+// ໄຟລ໌ຕົວຢ່າງ (mock) — ຄລິກໄຟລ໌ → ເປີດເບິ່ງ PDF ຈິງ (BASE_URL → ໃຊ້ໄດ້ທັງ dev ແລະ GitHub Pages)
+const SAMPLE_PDFS = ['sample.pdf', 'super-work-agreement.pdf', 'super-work-invitation.pdf'].map((f) => `${import.meta.env.BASE_URL}${f}`)
 
 // avatar style: ຮູບ (ຖ້າມີ) ຫຼື ສີພື້ນ + initials
 const avBg = (id) => { const u = avatarOf(id); return u ? { backgroundImage: `url("${u}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: colorOf(id) } }

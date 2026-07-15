@@ -52,7 +52,9 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const SRC = ['/super-work-invitation.pdf', '/super-work-agreement.pdf'] // public path → QR ສະແກນເປີດໄດ້
+      // public path (ຕິດ BASE_URL → ໃຊ້ໄດ້ທັງ dev ແລະ GitHub Pages) → QR ສະແກນເປີດໄດ້
+      const B = import.meta.env.BASE_URL
+      const SRC = [`${B}super-work-invitation.pdf`, `${B}super-work-agreement.pdf`]
       let samples
       try {
         samples = await Promise.all(SRC.map((u) => fetch(u).then((r) => r.blob())))
