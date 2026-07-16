@@ -138,13 +138,14 @@ export const DIRECTORY = [
 
 // ── ຈັດ directory ເປັນ sections: ຕົວຂ້ອຍ → President Office → IT → BD → ພະແນກອື່ນ (ຫົວໜ້າກ່ອນ) ──
 const DEPT_ORDER = ['exec', 'it', 'bd', 'infra', 'finance', 'acct', 'studio', 'budget', 'audit', 'construction', 'hr', 'legal', 'corp']
-export function directorySections(meId, query = '') {
+export function directorySections(meId, query = '', dept = '') {
   const q = query.trim().toLowerCase()
   const match = (p) => !q || (p.name + ' ' + p.email).toLowerCase().includes(q)
   const sections = []
   const me = DIRECTORY.find((p) => p.id === meId)
-  if (me && match(me)) sections.push({ key: 'me', label: 'ຕົວຂ້ອຍ', people: [me] })
-  for (const dk of DEPT_ORDER) {
+  // ກອງຕາມພະແນກ: ໂຊ "ຕົວຂ້ອຍ" ສະເພາະຕອນບໍ່ກອງ ຫຼື ຂ້ອຍຢູ່ພະແນກນັ້ນ
+  if (me && match(me) && (!dept || me.dept === dept)) sections.push({ key: 'me', label: 'ຕົວຂ້ອຍ', people: [me] })
+  for (const dk of (dept ? [dept] : DEPT_ORDER)) {
     const people = DIRECTORY
       .filter((p) => p.dept === dk && p.id !== meId && match(p))
       .sort((a, b) => (RANK_ORDER[a.rank] - RANK_ORDER[b.rank]) || a.name.localeCompare(b.name))

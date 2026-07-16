@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react'
 import {
-  Icon, MAX_TITLE, sanitizeTitle, uid, DIRECTORY, normalizeSteps,
+  Icon, MAX_TITLE, sanitizeTitle, uid, DIRECTORY, DEPTS, normalizeSteps,
   isOrdered, ROLE_LABEL, RANK_TITLE, directorySections, Header, Stepper, SectionHead, FileList, LoadingRow, initials, signerColor,
 } from './shared.jsx'
 import FilePreviewModal from './FilePreviewModal.jsx'
@@ -9,9 +9,11 @@ import AiSummary from './AiSummary.jsx'
 // ─────────────── Directory picker (ໂຄງສ້າງອົງກອນ + sticky headers) ───────────────
 function DirectoryPicker({ open, onClose, signers, onAdd, me }) {
   const [q, setQ] = useState('')
+  const [dept, setDept] = useState('') // '' = ທຸກພະແນກ
+  const [deptOpen, setDeptOpen] = useState(false)
   if (!open) return null
   const added = new Map(signers.map((s) => [s.id, s.role]))
-  const sections = directorySections(me, q)
+  const sections = directorySections(me, q, dept)
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -20,10 +22,31 @@ function DirectoryPicker({ open, onClose, signers, onAdd, me }) {
           <b><Icon.book /> ເລືອກຈາກລາຍຊື່</b>
           <button className="icon-mini" onClick={onClose}><Icon.x /></button>
         </div>
-        <div className="modal-search">
-          <Icon.search />
-          <input placeholder="ຄົ້ນຫາຊື່ ຫຼື ອີເມວ..." value={q} onChange={(e) => setQ(e.target.value)} />
+        {/* ຄົ້ນຫາ + ກອງຕາມພະແນກ (dropdown) */}
+        <div className="dir-fltrow">
+          <div className="modal-search">
+            <Icon.search />
+            <input placeholder="ຄົ້ນຫາຊື່ ຫຼື ອີເມວ..." value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <button className={`home-filter dir-flt ${dept ? 'on' : ''}`} onClick={() => setDeptOpen(true)}>
+            <Icon.users /><span>{dept ? DEPTS[dept] : 'ທຸກພະແນກ'}</span>
+          </button>
         </div>
+        {deptOpen && (
+          <div className="fsheet-overlay" onClick={(e) => { e.stopPropagation(); setDeptOpen(false) }}>
+            <div className="fsheet" onClick={(e) => e.stopPropagation()}>
+              <p className="fsheet-title">ກອງຕາມພະແນກ</p>
+              <button className={`sort-opt ${dept === '' ? 'on' : ''}`} onClick={() => { setDept(''); setDeptOpen(false) }}>
+                ທຸກພະແນກ{dept === '' && <Icon.check />}
+              </button>
+              {Object.entries(DEPTS).map(([k, label]) => (
+                <button key={k} className={`sort-opt ${dept === k ? 'on' : ''}`} onClick={() => { setDept(k); setDeptOpen(false) }}>
+                  {label}{dept === k && <Icon.check />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="modal-list">
           {sections.length === 0 && <p className="muted" style={{ textAlign: 'center', padding: '20px' }}>ບໍ່ພົບຊື່</p>}
           {sections.map((sec) => (
