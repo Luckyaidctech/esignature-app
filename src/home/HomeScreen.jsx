@@ -148,7 +148,11 @@ function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
   const REF = 14
 
   let list = docs.filter((d) => {
-    if (q && !d.title.toLowerCase().includes(q.trim().toLowerCase())) return false
+    // ຄົ້ນຫາໄດ້ທັງ ຊື່ເອກະສານ ແລະ ຊື່ຜູ້ສ້າງ (ທຸກ tab)
+    if (q) {
+      const s = q.trim().toLowerCase()
+      if (!d.title.toLowerCase().includes(s) && !nameOf(d.creatorId).toLowerCase().includes(s)) return false
+    }
     if (mode === 'tosign') {
       if (cat === 'myturn' && !isMyTurn(d, me)) return false
       if (cat === 'queued' && isMyTurn(d, me)) return false
@@ -177,7 +181,7 @@ function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
 
   return (
     <>
-      <div className="home-search"><Icon.search /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ຄົ້ນຫາເອກະສານ..." /></div>
+      <div className="home-search"><Icon.search /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ຄົ້ນຫາເອກະສານ ຫຼື ຊື່ຜູ້ສ້າງ..." /></div>
       <div className="home-filters">
         {creatorMode && <FilterDropdown btnLabel={CREATORS.find((c) => c.key === who).label} title="ຜູ້ສ້າງ" options={CREATORS} value={who} onChange={setWho} />}
         <FilterDropdown btnLabel={`${catLabel} (${list.length})`} title={mode === 'tosign' ? 'ຄິວຂອງຂ້ອຍ' : 'ສະຖານະ'} options={STATUS_OPTS} value={cat} onChange={setCat} />
