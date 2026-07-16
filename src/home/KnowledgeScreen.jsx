@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Icon, Header, ResultPopup, ReasonModal, initials } from '../flow/shared.jsx'
+import { Icon, Header, ResultPopup, ReasonModal, initials, ScreenPortal } from '../flow/shared.jsx'
 import { nameOf, colorOf, avatarOf, approvalChain, sortPendingFirst, KN_CATS, KN_TYPES, KN_STATUS } from './data.js'
 import KnowledgeForm from './KnowledgeForm.jsx'
 import CommentBox from './CommentBox.jsx'
@@ -192,6 +192,7 @@ export default function KnowledgeScreen({ me, posts = [], onCreateKn, onSubmitKn
   if (live) {
     const isMine = live.byId === me
     return (
+      <ScreenPortal>
       <div className="ac-detail-screen">
         <Header title="ລາຍລະອຽດໂພສ" onBack={() => setDetail(null)} />
         <div className="scroll">
@@ -224,6 +225,7 @@ export default function KnowledgeScreen({ me, posts = [], onCreateKn, onSubmitKn
         {preview && <FilePreviewModal file={preview} onClose={() => setPreview(null)} />}
         {popup && <ResultPopup title={popup.msg} desc="ລະບົບໄດ້ແຈ້ງເຕືອນຜູ້ກວດສອບແລ້ວ" onOk={() => { setPopup(null); setDetail(null) }} />}
       </div>
+      </ScreenPortal>
     )
   }
 
@@ -273,14 +275,17 @@ export default function KnowledgeScreen({ me, posts = [], onCreateKn, onSubmitKn
       </div>
     )}
 
-    <button className="fab fab-float" onClick={() => setForm(true)}><Icon.plus /></button>
+    {/* FAB + popup ຕ້ອງ portal ອອກນອກ .scroll (iOS: absolute ໃນ scroll ຈະເລື່ອນຕາມເນື້ອຫາ) */}
+    <ScreenPortal><button className="fab fab-float" onClick={() => setForm(true)}><Icon.plus /></button></ScreenPortal>
     {form && (
       <KnowledgeForm me={me}
         onSubmit={(data, publish) => { onCreateKn(data, publish); setForm(false); setTab('mine'); setSf('all'); setPopup({ msg: publish ? 'ສົ່ງກວດສອບແລ້ວ!' : 'ບັນທຶກຮ່າງແລ້ວ!' }) }}
         onClose={() => setForm(false)} />
     )}
     {popup && !detail && (
-      <ResultPopup title={popup.msg} desc={popup.msg.includes('ຮ່າງ') ? 'ຢູ່ໃນ "ຂອງຂ້ອຍ" → ຮ່າງ · ສົ່ງກວດສອບພາຍຫຼັງໄດ້' : 'ລະບົບໄດ້ແຈ້ງເຕືອນຜູ້ກວດສອບແລ້ວ'} onOk={() => setPopup(null)} />
+      <ScreenPortal>
+        <ResultPopup title={popup.msg} desc={popup.msg.includes('ຮ່າງ') ? 'ຢູ່ໃນ "ຂອງຂ້ອຍ" → ຮ່າງ · ສົ່ງກວດສອບພາຍຫຼັງໄດ້' : 'ລະບົບໄດ້ແຈ້ງເຕືອນຜູ້ກວດສອບແລ້ວ'} onOk={() => setPopup(null)} />
+      </ScreenPortal>
     )}
   </>)
 }

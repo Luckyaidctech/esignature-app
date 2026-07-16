@@ -1,4 +1,12 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
+
+// ── Portal ໜ້າ overlay ເຕັມຈໍ ອອກໄປໃສ່ .phone (ນອກ .scroll) ──
+// ຫ້າມ render overlay ເຕັມຈໍ ໄວ້ໃນ .scroll ໂດຍກົງ: iOS Safari ຈະດຶງ element
+// position:absolute ເຂົ້າ scroll layer → overlay ເລື່ອນຕາມເນື້ອຫາ + nav/FAB ທັບ
+export function ScreenPortal({ children }) {
+  return createPortal(children, document.querySelector('.phone') || document.body)
+}
 
 // ───────────────────────── ຄ່າຄົງທີ່ / Constants ─────────────────────────
 export const STEPS = [

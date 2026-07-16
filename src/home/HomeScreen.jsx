@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Icon, initials, Header, ResultPopup, ReasonModal } from '../flow/shared.jsx'
+import { Icon, initials, Header, ResultPopup, ReasonModal, ScreenPortal } from '../flow/shared.jsx'
 import RequestScreen, { REQ_KINDS, KIND_META, ReqCard, RequestDetailBody } from './RequestScreen.jsx'
 import KnowledgeScreen, { KnowledgeDetailBody } from './KnowledgeScreen.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
@@ -32,11 +32,10 @@ function DocCard({ d, me, onOpen }) {
       : rejected ? { t: 'ຖືກປະຕິເສດ', c: 'rej' } : { t: 'ກຳລັງດຳເນີນການ', c: '' }
   return (
     <button className={`doc-card ${myTurn ? 'myturn' : ''}`} onClick={() => onOpen(d.id)}>
-      {myTurn && <span className="doc-turn-flag"><Icon.pen /> ຮອບຂອງທ່ານ</span>}
       <div className="doc-card-top">
         <span className="doc-card-icon"><Icon.doc /></span>
         <b className="doc-card-title">{d.title}</b>
-        {!myTurn && <span className={`doc-status ${st.c}`}>{st.t}</span>}
+        {myTurn ? <span className="doc-status turn"><Icon.pen /> ຮອບຂອງທ່ານ</span> : <span className={`doc-status ${st.c}`}>{st.t}</span>}
       </div>
       <p className="doc-meta">ສ້າງໂດຍ: {nameOf(d.creatorId)} · {d.date}</p>
       <div className="doc-chips">
@@ -359,6 +358,7 @@ function Overview({ docs, me, onOpen }) {
       </div>
 
       {drill && (
+        <ScreenPortal>
         <div className="modal-overlay" onClick={() => setDrill(null)}>
           <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head"><b>{drill.title} ({drill.list.length})</b><button className="icon-mini" onClick={() => setDrill(null)}><Icon.x /></button></div>
@@ -375,6 +375,7 @@ function Overview({ docs, me, onOpen }) {
             </div>
           </div>
         </div>
+        </ScreenPortal>
       )}
     </>
   )
@@ -429,7 +430,7 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
     .map((d) => {
       const mine = d.signers.find((s) => s.id === me)
       const status = mine.status === 'signed' ? 'approved' : mine.status === 'rejected' ? 'rejected' : 'esign'
-      return { kind: 'esign', id: d.id, title: d.title, by: nameOf(d.creatorId), date: d.date, status, docId: d.id, signers: d.signers }
+      return { kind: 'esign', id: d.id, title: d.title, byId: d.creatorId, by: nameOf(d.creatorId), date: d.date, status, docId: d.id, signers: d.signers }
     })
   const esignPending = esignItems.filter((i) => i.status === 'esign').length // badge = ທີ່ລໍຖ້າ me ເຊັນ
   // ⚠ ຄະແນນ: ຍັງໂຊຂອງຕົນເອງຢູ່ — ເພາະໂມດູນ "ຄຳຂໍ" ຍັງບໍ່ມີ tab ຄະແນນ ໃຫ້ມັນຢູ່
@@ -494,7 +495,8 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
               <em>{m.signers.filter((s) => s.status === 'signed').length}/{m.signers.length} ດຳເນີນການແລ້ວ</em>
             </span>
           )}
-          {!isEsign && m.byId && (
+          {/* ຜູ້ຂໍ (ຜູ້ສ້າງ request) — ໂຊທຸກປະເພດ ຮວມທັງ ຂໍລາຍເຊັນ */}
+          {m.byId && (
             <span className="req-card-by">
               <span className="req-card-av" style={avBg(m.byId)}>{!avatarOf(m.byId) && initials(m.by)}</span>
               <b>{m.by}</b>
@@ -523,6 +525,7 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
       <p className="ac-note">* ໂອທີ, ລາພັກ, ການຈອງ, ຄວາມຮູ້, ຄະແນນ = request ຈາກ Superwork (ຕົວຢ່າງ)</p>
       {acFlash && <div className="ac-flash"><Icon.checkCircle /> {acFlash}</div>}
       {acDetail && (
+        <ScreenPortal>
         <div className="app ac-detail-screen">
           <Header title="ລາຍລະອຽດຄຳຂໍ" onBack={() => { setAcDetail(null); setRejMode(false) }} />
           <div className="scroll">
@@ -666,6 +669,7 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
               onOk={() => { setAcPopup(null); setAcDetail(null); setRejMode(false) }} />
           )}
         </div>
+        </ScreenPortal>
       )}
     </>
   )

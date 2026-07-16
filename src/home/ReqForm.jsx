@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react'
-import { Icon, Header, initials } from '../flow/shared.jsx'
+import { Icon, Header, initials, ScreenPortal } from '../flow/shared.jsx'
 import { approvalChain, reqTime, fmtH, daysBetween, PROJECTS, DAY_TYPES } from './data.js'
 import DateRangeSheet from './DateRangeSheet.jsx'
 import TimeSheet from './TimeSheet.jsx'
@@ -124,6 +124,7 @@ export default function ReqForm({ kind, me, onSubmit, onClose }) {
   }
 
   return (
+    <ScreenPortal>
     <div className="app rf-screen">
       <Header title={c.title} onBack={onClose} />
       <div className="scroll rf-scroll">
@@ -318,5 +319,6 @@ export default function ReqForm({ kind, me, onSubmit, onClose }) {
           onClose={() => setCal(false)} />
       )}
     </div>
+    </ScreenPortal>
   )
 }

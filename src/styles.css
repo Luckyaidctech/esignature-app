@@ -121,7 +121,8 @@ body {
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  /* ຫ້າມໃສ່ -webkit-overflow-scrolling: touch — ບັງຄັບ iOS ໃຊ້ legacy scroll path
+     ທີ່ມີບັກ absolute overlay ໃນ scroll container (momentum ເປັນ default ຢູ່ແລ້ວ) */
 }
 
 /* ── Card ── */
@@ -818,10 +819,9 @@ body {
 .noti-body span { font-size: 11px; color: var(--muted); }
 
 /* ═══ doc card additions ═══ */
-.doc-card { position: relative; }
 .doc-card.myturn { border-color: #f0b040; box-shadow: 0 0 0 2px rgba(224,123,31,.15); }
-.doc-turn-flag { position: absolute; top: -1px; right: -1px; display: flex; align-items: center; gap: 4px; background: var(--blue); color: #fff; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 0 12px 0 12px; }
-.doc-turn-flag svg { width: 11px; height: 11px; }
+.doc-status.turn { display: inline-flex; align-items: center; gap: 4px; color: #b45309; background: #fff5e6; }
+.doc-status.turn svg { width: 11px; height: 11px; }
 .doc-status.done { color: #16a34a; background: #e7f6ec; }
 .doc-status.cancel { color: #64748b; background: #eef1f6; }
 .doc-status.rej { color: var(--danger); background: var(--danger-soft); }
@@ -1244,7 +1244,7 @@ button.ac-card:active { transform: scale(.99); }
 
 /* ການ໌ດຄຳຂໍ */
 .req-list { padding: 0 16px 90px; display: flex; flex-direction: column; gap: 10px; }
-.req-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1px solid var(--line);
+.req-card { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1px solid var(--line);
   border-radius: 14px; padding: 12px; cursor: pointer; font-family: inherit; box-shadow: 0 1px 3px rgba(16,24,40,.04); }
 .req-card:hover { border-color: #c7d2fe; box-shadow: 0 4px 14px rgba(31,63,181,.08); }
 .req-card > svg { width: 18px; height: 18px; color: var(--muted); flex-shrink: 0; transform: rotate(-90deg); }
@@ -1258,7 +1258,8 @@ button.ac-card:active { transform: scale(.99); }
 .req-card-ic.esign { background: #1f3fb5; }
 .req-card-ic.points { background: #16a34a; }
 .req-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.req-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* padding-right ກັນຫົວຂໍ້ ຊ້ອນກັບ badge ທີ່ປັກໝຸດມຸມຂວາເທິງ */
+.req-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 82px; }
 .req-card-top b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* ວັນທີ+ເວລາ ແຖວດຽວ ບໍ່ຕົກແຖວ (ຊ່ວງຫຼາຍມື້ ໃຊ້ຮູບແບບສັ້ນ fmtRange) */
 .req-card-when { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1275,6 +1276,8 @@ button.ac-card:active { transform: scale(.99); }
 
 /* ສະຖານະ */
 .req-badge { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 9px; white-space: nowrap; flex-shrink: 0; }
+/* ໃນການ໌ດ: ປັກໝຸດມຸມຂວາເທິງ → ທຸກໃບຢູ່ບ່ອນດຽວກັນ ບໍ່ເລື່ອນຕາມເນື້ອຫາ (ສະເພາະ .req-card, ບໍ່ແຕະ detail/kn-cover) */
+.req-card .req-badge { position: absolute; top: 12px; right: 12px; }
 .req-badge.wait { background: #fff5e6; color: #b45309; }
 .req-badge.done { background: #e8f7ee; color: #15803d; }
 .req-badge.rej { background: #fdeaea; color: #b91c1c; }
@@ -1375,13 +1378,13 @@ button.ac-card:active { transform: scale(.99); }
 /* display:block ທັບ .scroll (ເປັນ flex column ຖືກຈຳກັດຄວາມສູງ → panel ຖືກບີບເຫຼືອ 0px) */
 .kf-scroll { display: block; flex: 1; overflow-y: auto; padding: 8px 16px 24px; background: var(--bg); }
 /* ຫົວຂໍ້ໝວດ — ຢູ່ນອກ panel ຕົວນ້ອຍ ສີເທົາ (ບໍ່ແຍ່ງຄວາມສົນໃຈກັບເນື້ອຫາ) */
-.kf-sec { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--muted);
+.kf-sec { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--muted);
   letter-spacing: .3px; margin: 22px 4px 8px; }
 .kf-scroll > .kf-sec:first-child { margin-top: 8px; }
 .kf-sec em { font-style: normal; font-weight: 600; opacity: .8; }
 .kf-star, .kf-label i { font-style: normal; color: #e23b4e; font-weight: 800; }
-.kf-sub { font-size: 11.5px; font-weight: 600; color: var(--muted); margin: 0 4px 7px; }
-.kf-hint { font-size: 11.5px; color: var(--muted); margin: 7px 4px 0; }
+.kf-sub { font-size: 12px; font-weight: 600; color: var(--muted); margin: 0 4px 7px; }
+.kf-hint { font-size: 12px; color: var(--muted); margin: 7px 4px 0; }
 
 /* panel ຂາວ — ຮວມແຖວ ຄັ່ນດ້ວຍເສັ້ນບາງ */
 .kf-panel { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 2px rgba(16,24,40,.05); }
@@ -1391,7 +1394,7 @@ button.ac-card:active { transform: scale(.99); }
 .kf-seg { display: flex; background: #eef1f6; border-radius: 13px; padding: 4px; }
 .kf-seg button { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
   background: none; border: none; border-radius: 10px; padding: 12px 4px; cursor: pointer; font-family: inherit;
-  font-size: 13.5px; font-weight: 600; color: var(--muted); transition: all .18s; }
+  font-size: 14px; font-weight: 600; color: var(--muted); transition: all .18s; }
 .kf-seg button svg { width: 16px; height: 16px; flex-shrink: 0; }
 .kf-seg button.on { background: #fff; color: var(--blue); font-weight: 800; box-shadow: 0 2px 8px rgba(16,24,40,.12); }
 
@@ -1416,7 +1419,7 @@ button.ac-card:active { transform: scale(.99); }
 .kf-add:hover:not(:disabled) { background: #f8faff; }
 .kf-add:disabled { opacity: .5; cursor: not-allowed; }
 .kf-add.err { box-shadow: inset 3px 0 0 #e23b4e, 0 1px 2px rgba(16,24,40,.05); }
-.kf-add b { flex: 1; min-width: 0; font-size: 15px; color: var(--blue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kf-add b { flex: 1; min-width: 0; font-size: 14px; color: var(--blue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kf-add > svg { width: 18px; height: 18px; color: #c3cbd9; transform: rotate(-90deg); flex-shrink: 0; }
 .kf-add-ic { width: 40px; height: 40px; border-radius: 11px; background: #eef2ff; color: var(--blue); display: grid; place-items: center; flex-shrink: 0; }
 .kf-add-ic svg { width: 20px; height: 20px; }
@@ -1425,7 +1428,7 @@ button.ac-card:active { transform: scale(.99); }
 .kf-lay { display: flex; gap: 6px; margin-bottom: 9px; }
 .kf-lay button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; background: #fff;
   border: 1px solid var(--line); border-radius: 9px; padding: 8px 4px; cursor: pointer; font-family: inherit;
-  font-size: 11.5px; font-weight: 600; color: var(--muted); }
+  font-size: 12px; font-weight: 600; color: var(--muted); }
 .kf-lay button svg { width: 13px; height: 13px; }
 .kf-lay button.on { background: #eff4ff; border-color: var(--blue); color: var(--blue); font-weight: 700; }
 
@@ -1445,7 +1448,7 @@ button.ac-card:active { transform: scale(.99); }
 .kf-chips { display: flex; gap: 8px; flex-wrap: wrap; border-radius: 14px; }
 .kf-chips.err { outline: 1.5px solid #fca5a5; outline-offset: 6px; }
 .kf-chips button { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: none;
-  border-radius: 999px; padding: 10px 16px; cursor: pointer; font-family: inherit; font-size: 13.5px; color: var(--text);
+  border-radius: 999px; padding: 10px 16px; cursor: pointer; font-family: inherit; font-size: 14px; color: var(--text);
   box-shadow: 0 1px 2px rgba(16,24,40,.06); transition: all .16s; }
 .kf-chips button svg { width: 13px; height: 13px; }
 .kf-chips button.on { background: var(--blue); color: #fff; font-weight: 700; box-shadow: 0 3px 10px rgba(31,63,181,.3); }
@@ -1459,8 +1462,8 @@ button.ac-card:active { transform: scale(.99); }
 .kn-toggle:last-of-type { border-radius: 0 0 16px 16px; }
 .kn-toggle + .kn-toggle { border-top: 1px solid var(--line); }
 .kn-toggle > div { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
-.kn-toggle b { font-size: 14.5px; }
-.kn-toggle span { font-size: 11.5px; color: var(--muted); }
+.kn-toggle b { font-size: 14px; }
+.kn-toggle span { font-size: 12px; color: var(--muted); }
 .kn-sw { width: 42px; height: 24px; border-radius: 999px; background: var(--line); flex-shrink: 0; position: relative; transition: background .18s; }
 .kn-sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .18s; }

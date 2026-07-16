@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Icon, Header, ResultPopup, ReasonModal, initials } from '../flow/shared.jsx'
+import { Icon, Header, ResultPopup, ReasonModal, initials, ScreenPortal } from '../flow/shared.jsx'
 import { nameOf, colorOf, avatarOf, approvalChain, reqTime, fmtRange, sortPendingFirst } from './data.js'
 
 // avatar: ຮູບໂປຣໄຟລ໌ (ຖ້າມີ) ຫຼື ສີພື້ນ + ຕົວຫຍໍ້
@@ -262,6 +262,7 @@ export default function RequestScreen({ me, director, reqs, onReqAction, onCreat
     const canAct = !mine && live.status === 'progress'
     const canCancel = mine && live.status === 'progress'
     return (
+      <ScreenPortal>
       <div className="ac-detail-screen">
         <Header title="ລາຍລະອຽດຄຳຂໍ" onBack={closeDetail} />
         <div className="scroll">
@@ -299,6 +300,7 @@ export default function RequestScreen({ me, director, reqs, onReqAction, onCreat
             onOk={() => { setPopup(null); closeDetail() }} />
         )}
       </div>
+      </ScreenPortal>
     )
   }
 
@@ -322,11 +324,14 @@ export default function RequestScreen({ me, director, reqs, onReqAction, onCreat
         : shown.map((r) => <ReqCard key={r.id} r={r} kind={kind} onOpen={setDetail} />)}
     </div>
 
-    <button className="fab fab-float" onClick={() => setForm(true)}><Icon.plus /></button>
+    {/* FAB + popup ຕ້ອງ portal ອອກນອກ .scroll (iOS: absolute ໃນ scroll ຈະເລື່ອນຕາມເນື້ອຫາ) */}
+    <ScreenPortal><button className="fab fab-float" onClick={() => setForm(true)}><Icon.plus /></button></ScreenPortal>
     {/* ຟອມອັນດຽວ ໃຊ້ທັງ 3 ໝວດ → ໜ້າຕາຄືກັນ, ຕ່າງແຕ່ field ສະເພາະໝວດ */}
     {form && <ReqForm kind={kind} me={me} onSubmit={submitForm} onClose={() => setForm(false)} />}
     {popup && !detail && (
-      <ResultPopup danger={!!popup.danger} title={popup.msg} desc="ລະບົບໄດ້ສົ່ງຄຳຂໍໄປລໍຖ້າອະນຸມັດແລ້ວ" onOk={() => setPopup(null)} />
+      <ScreenPortal>
+        <ResultPopup danger={!!popup.danger} title={popup.msg} desc="ລະບົບໄດ້ສົ່ງຄຳຂໍໄປລໍຖ້າອະນຸມັດແລ້ວ" onOk={() => setPopup(null)} />
+      </ScreenPortal>
     )}
   </>)
 }

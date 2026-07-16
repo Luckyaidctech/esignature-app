@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
-import { Icon, Header, initials } from '../flow/shared.jsx'
+import { Icon, Header, initials, ScreenPortal } from '../flow/shared.jsx'
 import { approvalChain, KN_CATS, KN_TEAMS, KN_TYPES } from './data.js'
 import PickSheet from './PickSheet.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
@@ -76,6 +76,7 @@ export default function KnowledgeForm({ me, onSubmit, onClose }) {
   }
 
   return (
+    <ScreenPortal>
     <div className="app rf-screen">
       <Header title="ສ້າງໂພສຄວາມຮູ້" onBack={onClose} />
       <div className="scroll kf-scroll">
@@ -232,5 +233,6 @@ export default function KnowledgeForm({ me, onSubmit, onClose }) {
       )}
       {preview && <FilePreviewModal file={preview} onClose={() => setPreview(null)} />}
     </div>
+    </ScreenPortal>
   )
 }
