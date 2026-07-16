@@ -28,8 +28,10 @@ const STATUS = {
   rejected: { label: 'ປະຕິເສດ', cls: 'rej' },
 }
 
-export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onComment, onCancel, onRemind, onEditComment, onDeleteComment }) {
+export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onApprove, onComment, onCancel, onRemind, onEditComment, onDeleteComment }) {
   const [rejectOpen, setRejectOpen] = useState(false)
+  const [approveOpen, setApproveOpen] = useState(false) // ຢືນຢັນອະນຸມັດ (role approver — ບໍ່ມີຊ່ອງເຊັນ)
+  const [approvePopup, setApprovePopup] = useState(false)
   const [rejPopup, setRejPopup] = useState(false)
   const [cancelPopup, setCancelPopup] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -419,7 +421,10 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onComm
           <button className="btn primary" onClick={() => act('ດາວໂຫລດເອກະສານທັງໝົດ')}><Icon.download /> ດາວໂຫລດທັງໝົດ</button>
         </>) : myTurn ? (<>
           <button className="btn danger" onClick={() => (iCreated ? setCancelOpen(true) : setRejectOpen(true))}><Icon.x /> {iCreated ? 'ຍົກເລີກຄຳຂໍ' : 'ປະຕິເສດ'}</button>
-          <button className="btn primary" onClick={() => onSign(d.id)}><Icon.pen /> ລົງນາມ</button>
+          {/* ຜູ້ອະນຸມັດ ບໍ່ມີຊ່ອງເຊັນ → ອະນຸມັດກົງ ບໍ່ຜ່ານໜ້າວາງລາຍເຊັນ (ບໍ່ດັ່ງນັ້ນຕິດ loop 0/0 ຊ່ອງ) */}
+          {mySig?.role === 'approver'
+            ? <button className="btn primary" onClick={() => setApproveOpen(true)}><Icon.check /> ອະນຸມັດ</button>
+            : <button className="btn primary" onClick={() => onSign(d.id)}><Icon.pen /> ລົງນາມ</button>}
         </>) : iCreated ? (<>
           <button className="btn danger" onClick={() => setCancelOpen(true)}><Icon.x /> ຍົກເລີກຄຳຂໍ</button>
           <button className="btn primary" onClick={doRemind}><Icon.send /> ເຕືອນຜູ້ລົງນາມ</button>
@@ -451,6 +456,24 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onComm
             </div>
           </div>
         </div>
+      )}
+
+      {/* ອະນຸມັດ (approver) — ຢືນຢັນແລ້ວອະນຸມັດເລີຍ ບໍ່ຜ່ານໜ້າວາງລາຍເຊັນ */}
+      {approveOpen && (
+        <div className="modal-overlay dim" onClick={() => setApproveOpen(false)}>
+          <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head"><b><Icon.check /> ຢືນຢັນອະນຸມັດ</b><button className="icon-mini" onClick={() => setApproveOpen(false)}><Icon.x /></button></div>
+            <p className="dd-approve-note">ອະນຸມັດ "{d.title}" — ລະບົບຈະບັນທຶກ, ແຈ້ງຜູ້ສ້າງ ແລະ ສົ່ງຕໍ່ໃຫ້ຄິວຖັດໄປ</p>
+            <div className="success-btns" style={{ maxWidth: 'none', padding: '0 16px 18px' }}>
+              <button className="btn ghost" onClick={() => setApproveOpen(false)}>ຍັງກ່ອນ</button>
+              <button className="btn primary" onClick={() => { setApproveOpen(false); setApprovePopup(true) }}><Icon.check /> ຢືນຢັນອະນຸມັດ</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {approvePopup && (
+        <ResultPopup title="ອະນຸມັດສຳເລັດ!" desc="ລະບົບໄດ້ບັນທຶກ ແລະ ແຈ້ງເຕືອນຜູ້ກ່ຽວຂ້ອງແລ້ວ"
+          onOk={() => { setApprovePopup(false); onApprove && onApprove(d.id) }} />
       )}
 
       {/* ປະຕິເສດ — ໃສ່ເຫດຜົນ (ໃຊ້ ReasonModal ຮ່ວມກັບທຸກທີ່) */}

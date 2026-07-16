@@ -330,7 +330,7 @@ export default function App() {
   }
   if (view === 'detail' && doc)
     return <DocDetail doc={doc} me={me} onBack={() => setView('home')}
-      onReject={onReject} onSign={onStartSign} onComment={onComment} onCancel={onCancel} onRemind={onRemind}
+      onReject={onReject} onSign={onStartSign} onApprove={(id) => markSigned(id)} onComment={onComment} onCancel={onCancel} onRemind={onRemind}
       onEditComment={onEditComment} onDeleteComment={onDeleteComment} />
   return <HomeScreen me={me} setMe={setMe} docs={docs} notis={notis}
     pointsReqs={pointsReqs} director={DIRECTOR} onCreatePoints={onCreatePoints} onPointsComment={onPointsComment} onPointsEditComment={onPointsEditComment} onPointsDeleteComment={onPointsDeleteComment} onPointsAction={onPointsAction}

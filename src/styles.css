@@ -790,6 +790,9 @@ body {
 
 /* ═══ home header actions: bell + user switcher ═══ */
 .home-actions { position: absolute; right: 2px; top: 0; display: flex; align-items: center; gap: 8px; }
+/* user pill ຍ້າຍໄປຊ້າຍ — ເມນູ dropdown ກໍເປີດຈາກຊ້າຍ */
+.home-actions.left { left: 2px; right: auto; }
+.user-menu.left { left: 0; right: auto; }
 .home-iconbtn { position: relative; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.16); border: none; color: #fff; display: grid; place-items: center; cursor: pointer; }
 .noti-badge { position: absolute; top: -3px; right: -3px; min-width: 17px; height: 17px; border-radius: 9px; background: #e23b4e; color: #fff; font-size: 10px; font-weight: 800; display: grid; place-items: center; padding: 0 4px; border: 1.5px solid var(--blue-dark); }
 .user-wrap { position: relative; }
@@ -1722,6 +1725,9 @@ button.ac-card:active { transform: scale(.99); }
 .btn.danger:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
 .btn.danger.disabled, .btn.danger:disabled { opacity: .45; box-shadow: none; cursor: not-allowed; }
 .btn.danger svg { stroke: #fff; }
+
+/* ຂໍ້ຄວາມໃນກ່ອງຢືນຢັນອະນຸມັດ (DocDetail — approver) */
+.dd-approve-note { margin: 4px 18px 14px; font-size: 13.5px; line-height: 1.6; color: var(--muted); }
 
 /* ─────────── OTP resend disabled (countdown) ─────────── */
 .otp-resend.off { color: var(--muted); cursor: not-allowed; opacity: .7; }

@@ -130,7 +130,12 @@ function TimeDropdown({ value, onChange, range, setRange }) {
 }
 
 // ─────────── list view ───────────
-function DocList({ docs, me, onOpen, empty, creatorMode }) {
+// filter ຕ້ອງກົງກັບຄວາມໝາຍ tab (mode):
+//   tosign  → ກອງຕາມ "ຄິວ" (ຮອດຮອບຂ້ອຍ/ລໍຄິວ) — ທຸກໃບເປັນ progress ຢູ່ແລ້ວ ກອງສະຖານະບໍ່ມີຄວາມໝາຍ
+//   created → ບໍ່ມີ "ສຳເລັດແລ້ວ" (ໃບ done ຍ້າຍໄປ tab ລົງນາມແລ້ວ)
+//   signed / cc → ສະຖານະຄົບ 5
+const TURNS = [{ key: 'all', label: 'ທຸກຄິວ' }, { key: 'myturn', label: 'ຮອດຮອບຂ້ອຍ' }, { key: 'queued', label: 'ລໍຄິວກ່ອນໜ້າ' }]
+function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('all')
   const [who, setWho] = useState('all')
@@ -138,12 +143,16 @@ function DocList({ docs, me, onOpen, empty, creatorMode }) {
   const [range, setRange] = useState({ from: '', to: '' })
   const [sort, setSort] = useState('recent')
   const [sortOpen, setSortOpen] = useState(false)
-  const SORTS = creatorMode ? SORTS_SIGNED : SORTS_SENT // tab 2 (ເຊັນແລ້ວ) = ເຊັນລ່າສຸດ/ເກົ່າສຸດ
+  const SORTS = mode === 'signed' ? SORTS_SIGNED : SORTS_SENT
+  const STATUS_OPTS = mode === 'tosign' ? TURNS : mode === 'created' ? CATS.filter((c) => c.key !== 'done') : CATS
   const REF = 14
 
   let list = docs.filter((d) => {
     if (q && !d.title.toLowerCase().includes(q.trim().toLowerCase())) return false
-    if (cat !== 'all' && d.status !== cat) return false
+    if (mode === 'tosign') {
+      if (cat === 'myturn' && !isMyTurn(d, me)) return false
+      if (cat === 'queued' && isMyTurn(d, me)) return false
+    } else if (cat !== 'all' && d.status !== cat) return false
     if (creatorMode && who === 'mine' && d.creatorId !== me) return false
     if (creatorMode && who === 'others' && d.creatorId === me) return false
     if (time === '7d' && REF - d.ts > 7) return false
@@ -156,12 +165,14 @@ function DocList({ docs, me, onOpen, empty, creatorMode }) {
     return true
   })
   list = [...list].sort((a, b) => {
+    // tab ຕ້ອງການລາຍເຊັນຂ້ອຍ: ຮອດຮອບຂ້ອຍ ຂຶ້ນກ່ອນສະເໝີ ແລ້ວຄ່ອຍຮຽງຕາມ sort ທີ່ເລືອກ
+    if (mode === 'tosign') { const t = (isMyTurn(b, me) ? 1 : 0) - (isMyTurn(a, me) ? 1 : 0); if (t) return t }
     if (sort === 'recent') return b.ts - a.ts
     if (sort === 'oldest') return a.ts - b.ts
     if (sort === 'az') return a.title.localeCompare(b.title, 'lo')
     return b.title.localeCompare(a.title, 'lo')
   })
-  const catLabel = CATS.find((c) => c.key === cat).label
+  const catLabel = STATUS_OPTS.find((c) => c.key === cat).label
   const timeLabel = TIMES.find((t) => t.key === time).label
 
   return (
@@ -169,7 +180,7 @@ function DocList({ docs, me, onOpen, empty, creatorMode }) {
       <div className="home-search"><Icon.search /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ຄົ້ນຫາເອກະສານ..." /></div>
       <div className="home-filters">
         {creatorMode && <FilterDropdown btnLabel={CREATORS.find((c) => c.key === who).label} title="ຜູ້ສ້າງ" options={CREATORS} value={who} onChange={setWho} />}
-        <FilterDropdown btnLabel={`${catLabel} (${list.length})`} title="ສະຖານະ" options={CATS} value={cat} onChange={setCat} />
+        <FilterDropdown btnLabel={`${catLabel} (${list.length})`} title={mode === 'tosign' ? 'ຄິວຂອງຂ້ອຍ' : 'ສະຖານະ'} options={STATUS_OPTS} value={cat} onChange={setCat} />
         <TimeDropdown value={time} onChange={setTime} range={range} setRange={setRange} />
         <div className="sort-wrap">
           <button className="home-filter" onClick={() => setSortOpen(true)}><Icon.sort /> {SORTS.find((s) => s.key === sort).label}</button>
@@ -788,10 +799,12 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
       <div className="home-header">
         <div className="home-title-row">
           <h1>{nav === 'approve' ? 'ການອະນຸມັດ' : nav === 'request' ? 'ຄຳຂໍ' : nav === 'knowledge' ? 'ຄວາມຮູ້' : 'My e-Signature'}</h1>
-          <div className="home-actions">
-            {/* ພາບລວມ (report) — ຍ້າຍຈາກ tab ມາເປັນປຸ່ມ icon ແທນ ຕັ້ງຄ່າ (ຕັ້ງຄ່າ ຍັງຢູ່ໃນເມນູໂປຣໄຟລ໌
-                — ໃສ່ 3 ປຸ່ມແລ້ວທັບຊື່ໂມດູນ ຈໍ 375px ບໍ່ພໍ) */}
+          {/* user pill ຢູ່ຊ້າຍ (Lucky ສັ່ງ) → ຂວາມີບ່ອນພໍໃຫ້ ພາບລວມ + ຕັ້ງຄ່າ */}
+          <div className="home-actions right">
             {nav === 'sign' && <button className="home-iconbtn" onClick={() => setOvOpen(true)} title="ພາບລວມ"><Icon.chart /></button>}
+            {nav === 'sign' && <button className="home-iconbtn" onClick={onOpenSettings} title="ຕັ້ງຄ່າ"><Icon.gear /></button>}
+          </div>
+          <div className="home-actions left">
             <div className="user-wrap">
               <button className="user-pill" onClick={() => setUserMenu((o) => !o)}>
                 <span className="user-pill-av" style={avBg(me)}>{!avatarOf(me) && initials(nameOf(me))}</span>
@@ -799,7 +812,7 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
               </button>
               {userMenu && (<>
                 <div className="sort-backdrop" onClick={() => setUserMenu(false)} />
-                <div className="user-menu">
+                <div className="user-menu left">
                   {/* ໂປຣໄຟລ໌ຂອງຂ້ອຍ — ຍ້າຍມາຈາກ tab ລຸ່ມ (ໄດ້ slot ໃຫ້ "ຄວາມຮູ້") */}
                   <div className="user-me">
                     <span className="user-opt-av lg" style={avBg(me)}>{!avatarOf(me) && initials(nameOf(me))}</span>
@@ -863,12 +876,12 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
             onReqComment={onReqComment} onReqEditComment={onReqEditComment} onReqDeleteComment={onReqDeleteComment}
             openReq={openReq} onConsumeOpenReq={() => setOpenReq(null)} />
         ) : tab === 'tosign'
-          ? <DocList docs={toSign} me={me} onOpen={onOpenDoc} empty="ບໍ່ມີເອກະສານທີ່ລໍຖ້າລາຍເຊັນທ່ານ" creatorMode />
+          ? <DocList mode="tosign" docs={toSign} me={me} onOpen={onOpenDoc} empty="ບໍ່ມີເອກະສານທີ່ລໍຖ້າລາຍເຊັນທ່ານ" creatorMode />
           : tab === 'cc'
-            ? (<><p className="cc-note"><Icon.users /> ເອກະສານທີ່ທ່ານໄດ້ຮັບສຳເນົາ (CC) — ເບິ່ງໄດ້ ບໍ່ຕ້ອງເຊັນ</p><DocList docs={ccDocs} me={me} onOpen={onOpenDoc} empty="ຍັງບໍ່ມີເອກະສານທີ່ໄດ້ຮັບ CC" creatorMode /></>)
+            ? (<><p className="cc-note"><Icon.users /> ເອກະສານທີ່ທ່ານໄດ້ຮັບສຳເນົາ (CC) — ເບິ່ງໄດ້ ບໍ່ຕ້ອງເຊັນ</p><DocList mode="cc" docs={ccDocs} me={me} onOpen={onOpenDoc} empty="ຍັງບໍ່ມີເອກະສານທີ່ໄດ້ຮັບ CC" creatorMode /></>)
             : tab === 'created'
-              ? <DocList docs={created} me={me} onOpen={onOpenDoc} empty="ທ່ານຍັງບໍ່ໄດ້ສ້າງເອກະສານ" />
-              : <DocList docs={signed} me={me} onOpen={onOpenDoc} empty="ຍັງບໍ່ມີເອກະສານທີ່ທ່ານລົງນາມແລ້ວ" creatorMode />}
+              ? <DocList mode="created" docs={created} me={me} onOpen={onOpenDoc} empty="ທ່ານຍັງບໍ່ໄດ້ສ້າງເອກະສານ" />
+              : <DocList mode="signed" docs={signed} me={me} onOpen={onOpenDoc} empty="ຍັງບໍ່ມີເອກະສານທີ່ທ່ານລົງນາມແລ້ວ" creatorMode />}
       </div>
 
       {/* ໂມດູນທີ່ມີ FAB ຂອງຕົນເອງ (ສ້າງຕາມ tab ທີ່ເປີດຢູ່) → ບໍ່ໂຊ FAB ກາງ ບໍ່ດັ່ງນັ້ນຈະຊ້ອນກັນ 2 ປຸ່ມ
