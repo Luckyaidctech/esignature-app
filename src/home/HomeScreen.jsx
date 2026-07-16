@@ -135,6 +135,14 @@ function TimeDropdown({ value, onChange, range, setRange }) {
 //   created → ບໍ່ມີ "ສຳເລັດແລ້ວ" (ໃບ done ຍ້າຍໄປ tab ລົງນາມແລ້ວ)
 //   signed / cc → ສະຖານະຄົບ 5
 const TURNS = [{ key: 'all', label: 'ທຸກຄິວ' }, { key: 'myturn', label: 'ຮອດຮອບຂ້ອຍ' }, { key: 'queued', label: 'ລໍຄິວກ່ອນໜ້າ' }]
+// ປະຫວັດທັງໝົດ — ກອງຕາມຜົນ/ການກະທຳ (ຫົວໜ້າ confirm: ເຊັນ · ອະນຸມັດ · ປະຕິເສດ · ຍົກເລີກ)
+const HIST = [
+  { key: 'all', label: 'ທັງໝົດ' },
+  { key: 'signed', label: 'ເຊັນແລ້ວ' },
+  { key: 'approved', label: 'ອະນຸມັດແລ້ວ' },
+  { key: 'rejected', label: 'ປະຕິເສດ' },
+  { key: 'cancelled', label: 'ຍົກເລີກ' },
+]
 function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('all')
@@ -143,8 +151,8 @@ function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
   const [range, setRange] = useState({ from: '', to: '' })
   const [sort, setSort] = useState('recent')
   const [sortOpen, setSortOpen] = useState(false)
-  const SORTS = mode === 'signed' ? SORTS_SIGNED : SORTS_SENT
-  const STATUS_OPTS = mode === 'tosign' ? TURNS : mode === 'created' ? CATS.filter((c) => c.key !== 'done') : CATS
+  const SORTS = mode === 'history' ? SORTS_SIGNED : SORTS_SENT
+  const STATUS_OPTS = mode === 'tosign' ? TURNS : mode === 'created' ? CATS.filter((c) => c.key !== 'done') : mode === 'history' ? HIST : CATS
   const REF = 14
 
   let list = docs.filter((d) => {
@@ -156,6 +164,12 @@ function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
     if (mode === 'tosign') {
       if (cat === 'myturn' && !isMyTurn(d, me)) return false
       if (cat === 'queued' && isMyTurn(d, me)) return false
+    } else if (mode === 'history') {
+      // ເຊັນ/ອະນຸມັດ = ການກະທຳຂອງ "ຂ້ອຍ" · ປະຕິເສດ/ຍົກເລີກ = ຜົນຂອງໃບເອກະສານ
+      if (cat === 'signed' && !d.signers.some((s) => s.id === me && s.status === 'signed' && s.role !== 'approver')) return false
+      if (cat === 'approved' && !d.signers.some((s) => s.id === me && s.status === 'signed' && s.role === 'approver')) return false
+      if (cat === 'rejected' && d.status !== 'rejected') return false
+      if (cat === 'cancelled' && d.status !== 'cancelled') return false
     } else if (cat !== 'all' && d.status !== cat) return false
     if (creatorMode && who === 'mine' && d.creatorId !== me) return false
     if (creatorMode && who === 'others' && d.creatorId === me) return false
@@ -182,9 +196,19 @@ function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
   return (
     <>
       <div className="home-search"><Icon.search /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ຄົ້ນຫາເອກະສານ ຫຼື ຊື່ຜູ້ສ້າງ..." /></div>
+      {/* ປະຫວັດທັງໝົດ: ກອງຜົນລັບເປັນຊິບແຖວເທິງ (ເຫັນຄົບທຸກຕົວເລືອກ — ຫົວໜ້າຢາກໃຫ້ all show) */}
+      {mode === 'history' && (
+        <div className="req-sf hist-sf">
+          {HIST.map((o) => (
+            <button key={o.key} className={`req-sf-chip ${cat === o.key ? 'on' : ''}`} onClick={() => setCat(o.key)}>{o.label}</button>
+          ))}
+        </div>
+      )}
       <div className="home-filters">
         {creatorMode && <FilterDropdown btnLabel={CREATORS.find((c) => c.key === who).label} title="ຜູ້ສ້າງ" options={CREATORS} value={who} onChange={setWho} />}
-        <FilterDropdown btnLabel={`${catLabel} (${list.length})`} title={mode === 'tosign' ? 'ຄິວຂອງຂ້ອຍ' : 'ສະຖານະ'} options={STATUS_OPTS} value={cat} onChange={setCat} />
+        {mode !== 'history' && (
+          <FilterDropdown btnLabel={`${catLabel} (${list.length})`} title={mode === 'tosign' ? 'ຄິວຂອງຂ້ອຍ' : 'ສະຖານະ'} options={STATUS_OPTS} value={cat} onChange={setCat} />
+        )}
         <TimeDropdown value={time} onChange={setTime} range={range} setRange={setRange} />
         <div className="sort-wrap">
           <button className="home-filter" onClick={() => setSortOpen(true)}><Icon.sort /> {SORTS.find((s) => s.key === sort).label}</button>
@@ -724,12 +748,14 @@ function NotiPanel({ notis, onClose, onOpen }) {
 }
 
 // ─────────── main ───────────
-// 4 tab ຫຼັກ (Lucky ສັ່ງ 16/07) — ພາບລວມ ຍ້າຍໄປປຸ່ມ icon ເທິງ header
+// 5 tab ຫຼັກ (ຫົວໜ້າ confirm 16/07) — tab bar ເລື່ອນຊ້າຍຂວາໄດ້ (scrollable)
+//   ລົງນາມແລ້ວ ຖືກຕັດ (ຢູ່ໃນ ປະຫວັດທັງໝົດ ແລ້ວ) · tab 6 ລໍຫົວໜ້າ confirm
 const TABS = [
   { key: 'tosign', label: 'ຕ້ອງການລາຍເຊັນຂ້ອຍ', icon: Icon.pen },
   { key: 'created', label: 'ລໍຖ້າຜູ້ອື່ນເຊັນ', icon: Icon.clock },
-  { key: 'signed', label: 'ລົງນາມແລ້ວ', icon: Icon.checkCircle },
   { key: 'cc', label: 'ໄດ້ຮັບສຳເນົາ', icon: Icon.users },
+  { key: 'history', label: 'ປະຫວັດທັງໝົດ', icon: Icon.doc },
+  { key: 'reports', label: 'ລາຍງານ & ສະຖິຕິ', icon: Icon.chart },
 ]
 
 // ─────────── noti: ໄອຄອນ · ສີ · ຫົວຂໍ້ ຕາມປະເພດ (ຄືແອັບຈິງ) ───────────
@@ -767,7 +793,6 @@ function NotiCard({ n, onOpen, onOpenReq }) {
 export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], director, onCreatePoints, onPointsComment, onPointsEditComment, onPointsDeleteComment, onPointsAction, reqs = {}, onReqAction, onCreateReq, onCancelReq, onReqComment, onReqEditComment, onReqDeleteComment,
   onCreateKn, onSubmitKn, onKnLike, onKnView, onMarkRead, onNew, onOpenDoc, onOpenFromNoti, onOpenSettings }) {
   const [tab, setTab] = useState('tosign')
-  const [ovOpen, setOvOpen] = useState(false) // ໜ້າ ພາບລວມ (report) — ຍ້າຍຈາກ tab ໄປປຸ່ມ header
   const [nav, setNav] = useState('sign')
   const [userMenu, setUserMenu] = useState(false)
   const [fabMenu, setFabMenu] = useState(false)
@@ -783,15 +808,14 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
     .filter((d) => d.status === 'progress' && d.signers.some((s) => s.id === me && s.status !== 'signed' && s.status !== 'rejected'))
     .sort((a, b) => (isMyTurn(b, me) ? 1 : 0) - (isMyTurn(a, me) ? 1 : 0))
   const created = docs.filter((d) => d.creatorId === me && d.status !== 'done')
-  const signed = docs.filter((d) =>
-    (d.creatorId !== me && d.signers.some((s) => s.id === me && s.status === 'signed')) ||
-    (d.creatorId === me && d.status === 'done'))
+  // tab ປະຫວັດທັງໝົດ = ທຸກໃບທີ່ຂ້ອຍກ່ຽວຂ້ອງ (ສ້າງ / ຢູ່ໃນສາຍເຊັນ / ໄດ້ CC) ທຸກສະຖານະ
+  const history = docs.filter((d) => d.creatorId === me || d.signers.some((s) => s.id === me) || (d.cc || []).includes(me))
   // ໄດ້ຮັບ CC = ຄົນອื่นสร้าง + ฉันไม่ได้เป็นผู้เซ็น + ฉันอยู่ใน cc
   const ccDocs = docs.filter((d) => d.creatorId !== me && !d.signers.some((s) => s.id === me) && (d.cc || []).includes(me))
   const myNotis = notis.filter((n) => n.forId === me)
   const unread = myNotis.filter((n) => !n.read).length
   // badge tosign = ຈຳນວນທີ່ໂຊໃນ tab ຈິງ (ກົງກັບການ໌ດ — ບໍ່ນັບສະເພາະຮອບຂ້ອຍ)
-  const badge = { tosign: toSign.length, created: created.filter((d) => d.status === 'progress').length, signed: signed.length }
+  const badge = { tosign: toSign.length, created: created.filter((d) => d.status === 'progress').length }
   // badge ໂມດູນ "ຄຳຂໍ" = ຄຳຂໍ "ຂອງຂ້ອຍ" ທີ່ຍັງລໍຖ້າຜົນອະນຸມັດ
   // (ທີ່ຄົນອື່ນສົ່ງມາໃຫ້ຂ້ອຍອະນຸມັດ ຢູ່ໂມດູນ "ການອະນຸມັດ" — ບໍ່ນັບຢູ່ນີ້)
   const reqPending = REQ_KINDS.reduce((n, k) => n + (reqs[k.key] || []).filter((r) => r.byId === me && r.status === 'progress').length, 0)
@@ -803,9 +827,8 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
       <div className="home-header">
         <div className="home-title-row">
           <h1>{nav === 'approve' ? 'ການອະນຸມັດ' : nav === 'request' ? 'ຄຳຂໍ' : nav === 'knowledge' ? 'ຄວາມຮູ້' : 'My e-Signature'}</h1>
-          {/* user pill ຢູ່ຊ້າຍ (Lucky ສັ່ງ) → ຂວາມີບ່ອນພໍໃຫ້ ພາບລວມ + ຕັ້ງຄ່າ */}
+          {/* user pill ຢູ່ຊ້າຍ (Lucky ສັ່ງ) — ລາຍງານ ກາຍເປັນ tab 5 ແລ້ວ ເຫຼືອປຸ່ມ ຕັ້ງຄ່າ */}
           <div className="home-actions right">
-            {nav === 'sign' && <button className="home-iconbtn" onClick={() => setOvOpen(true)} title="ພາບລວມ"><Icon.chart /></button>}
             {nav === 'sign' && <button className="home-iconbtn" onClick={onOpenSettings} title="ຕັ້ງຄ່າ"><Icon.gear /></button>}
           </div>
           <div className="home-actions left">
@@ -885,7 +908,9 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
             ? (<><p className="cc-note"><Icon.users /> ເອກະສານທີ່ທ່ານໄດ້ຮັບສຳເນົາ (CC) — ເບິ່ງໄດ້ ບໍ່ຕ້ອງເຊັນ</p><DocList mode="cc" docs={ccDocs} me={me} onOpen={onOpenDoc} empty="ຍັງບໍ່ມີເອກະສານທີ່ໄດ້ຮັບ CC" creatorMode /></>)
             : tab === 'created'
               ? <DocList mode="created" docs={created} me={me} onOpen={onOpenDoc} empty="ທ່ານຍັງບໍ່ໄດ້ສ້າງເອກະສານ" />
-              : <DocList mode="signed" docs={signed} me={me} onOpen={onOpenDoc} empty="ຍັງບໍ່ມີເອກະສານທີ່ທ່ານລົງນາມແລ້ວ" creatorMode />}
+              : tab === 'history'
+                ? <DocList mode="history" docs={history} me={me} onOpen={onOpenDoc} empty="ຍັງບໍ່ມີປະຫວັດເອກະສານ" creatorMode />
+                : <Overview docs={docs} me={me} onOpen={onOpenDoc} />}
       </div>
 
       {/* ໂມດູນທີ່ມີ FAB ຂອງຕົນເອງ (ສ້າງຕາມ tab ທີ່ເປີດຢູ່) → ບໍ່ໂຊ FAB ກາງ ບໍ່ດັ່ງນັ້ນຈະຊ້ອນກັນ 2 ປຸ່ມ
@@ -915,18 +940,6 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
         </div>
       )}
       {pointsForm && <PointsRequest me={me} onSubmit={onCreatePoints} onViewDetail={(r) => { setPointsForm(false); setNav('approve'); setOpenReqId(r.id) }} onClose={() => setPointsForm(false)} />}
-
-      {/* ພາບລວມ (report) — ໜ້າເຕັມ ເປີດຈາກປຸ່ມ icon ເທິງ header ຂອງ e-Sign */}
-      {ovOpen && (
-        <ScreenPortal>
-          <div className="app ac-detail-screen">
-            <Header title="ພາບລວມ" onBack={() => setOvOpen(false)} />
-            <div className="scroll home-scroll">
-              <Overview docs={docs} me={me} onOpen={(id) => { setOvOpen(false); onOpenDoc(id) }} />
-            </div>
-          </div>
-        </ScreenPortal>
-      )}
 
       <div className="home-bottomnav">
         {[
