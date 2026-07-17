@@ -6,7 +6,8 @@ export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/superwork/' : '/',
   plugins: [react()],
   server: {
-    port: 5173,
-    strictPort: true,
+    // ຮັບ port ຈາກ env (PORT) ເພື່ອຮັນຫຼາຍ instance ພ້ອມກັນໄດ້ · default 5173
+    port: Number(process.env.PORT) || 5173,
+    strictPort: false,
   },
 })
