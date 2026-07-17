@@ -35,3 +35,6 @@ Thumbs.db
 __pycache__/
 *.pyc
 venv/
+
+# ບັນທຶກ handoff ພາຍໃນ (ບໍ່ push ຂຶ້ນ repo ສາທາລະນະ)
+CLAUDE.md
