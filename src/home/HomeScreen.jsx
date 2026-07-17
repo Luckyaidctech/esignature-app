@@ -3,7 +3,7 @@ import { Icon, initials, Header, ResultPopup, ReasonModal, ScreenPortal } from '
 import RequestScreen, { REQ_KINDS, KIND_META, ReqCard, RequestDetailBody } from './RequestScreen.jsx'
 import KnowledgeScreen, { KnowledgeDetailBody } from './KnowledgeScreen.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
-import { USERS, nameOf, colorOf, progress, isMyTurn, avatarOf, rolesLabel, sortPendingFirst, currentApprover, DOC_TYPES, docTypeOf } from './data.js'
+import { USERS, nameOf, colorOf, progress, isMyTurn, avatarOf, rolesLabel, sortPendingFirst, currentApprover, DOC_TYPES, docTypeOf, visibleDocs } from './data.js'
 import PointsRequest from './PointsRequest.jsx'
 
 // avatar style: ຮູບໂປຣไฟล์ (ຖ້າມີ) ຫຼື ສີພື້ນ
@@ -246,7 +246,7 @@ function PeriodDropdown({ value, onChange }) {
 function Overview({ docs, me, onOpen }) {
   const [period, setPeriod] = useState('all')
   const [drill, setDrill] = useState(null) // { title, list }
-  const REF = 14
+  const REF = new Date().getDate() // realtime — ນັບໄລຍະເວລາຈາກມື້ນີ້ຈິງ
   const inPeriod = (d) => (period === 'all' ? true : period === 'week' ? REF - d.ts <= 7 : REF - d.ts <= 30)
   const scoped = docs.filter((d) => (d.creatorId === me || d.signers.some((s) => s.id === me) || (d.cc || []).includes(me)) && inPeriod(d))
 
@@ -888,7 +888,7 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
               ? <DocList key="created" mode="created" docs={created} me={me} onOpen={onOpenDoc} empty="ທ່ານຍັງບໍ່ໄດ້ສ້າງເອກະສານ" />
               : tab === 'history'
                 ? <DocList key="history" mode="history" docs={history} me={me} onOpen={onOpenDoc} empty="ຍັງບໍ່ມີປະຫວັດເອກະສານ" creatorMode />
-                : <Overview docs={docs} me={me} onOpen={onOpenDoc} />}
+                : <Overview docs={visibleDocs(docs, me)} me={me} onOpen={onOpenDoc} />}
       </div>
 
       {/* ໂມດູນທີ່ມີ FAB ຂອງຕົນເອງ (ສ້າງຕາມ tab ທີ່ເປີດຢູ່) → ບໍ່ໂຊ FAB ກາງ ບໍ່ດັ່ງນັ້ນຈະຊ້ອນກັນ 2 ປຸ່ມ

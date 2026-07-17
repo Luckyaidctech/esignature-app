@@ -147,6 +147,11 @@ const DOC_TYPE_BY_ID = {
   d17: 'ສັນຍາທຸລະກິດ / MOU', d21: 'ສັນຍາທຸລະກິດ / MOU', d22: 'ສັນຍາທຸລະກິດ / MOU', d23: 'ການເງິນ-ເບີກຈ່າຍ',
 }
 export const docTypeOf = (d) => d.docType || DOC_TYPE_BY_ID[d.id] || 'ເອກະສານທົ່ວໄປ'
+// ── ເອກະສານລັບ: ເຫັນໄດ້ສະເພາະຜູ້ກ່ຽວຂ້ອງ (ຜູ້ສ້າງ / ຜູ້ເຊັນ / CC) — ຄົນອື່ນຫ້າມເຫັນແມ້ແຕ່ຊື່ເລື່ອງ ──
+// ໃຊ້ກັບທຸກ view ທີ່ເບິ່ງພາບລວມທັງລະບົບ (ເຊັ່ນ ລາຍງານ & ສະຖິຕິ)
+export const canSeeDoc = (d, me) => docTypeOf(d) !== 'ເອກະສານລັບ'
+  || d.creatorId === me || d.signers.some((s) => s.id === me) || (d.cc || []).includes(me)
+export const visibleDocs = (docs, me) => docs.filter((d) => canSeeDoc(d, me))
 
 // ── ຂໍ້ມູນປະເພດ + ເສັ້ນທາງບັງຄັບ (Q5: demo ເຕັມ 6 ປະເພດ · ອີກ 5 ເລືອກໄດ້ ແຕ່ຍັງບໍ່ເປີດເສັ້ນທາງ) ──
 export const DOC_TYPE_INFO = {
