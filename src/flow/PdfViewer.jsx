@@ -8,7 +8,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
 const RENDER_W = 820 // internal canvas resolution; CSS scales to 100%
 
-// footer ທ້າຍໜ້າ: QR ຈິງ (ສະແກນ → ເປີດ/ໂຫລດ PDF) + ວັນທີເຊັນລ່າສຸດ
+// footer ທ້າຍໜ້າ: QR ກວດສອບເອກະສານ (E5) — ສະແກນ → ເປີດໜ້າ verify (docNo/ສະຖານະ/ຜູ້ເຊັນ) + ວັນທີເຊັນລ່າສຸດ
 function PageFooter({ footer, page }) {
   if (!footer) return null
   const url = footer.url || (typeof window !== 'undefined' ? window.location.origin : '')
@@ -16,7 +16,7 @@ function PageFooter({ footer, page }) {
     <div className="pdf-page-foot">
       <div className="pdf-foot-qr">
         <span className="qr-svg"><QRCodeSVG value={url} size={40} level="M" bgColor="#ffffff" fgColor="#1a2a5e" /></span>
-        <div><b>ສະແກນເປີດເອກະສານ</b><span>PDF · ໜ້າ {page}</span></div>
+        <div><b>ສະແກນກວດສອບເອກະສານ</b><span>ໜ້າ {page}</span></div>
       </div>
       <div className="pdf-foot-date"><span>ເຊັນລ່າສຸດ</span><b>{footer.date || '—'}</b></div>
     </div>
@@ -251,6 +251,8 @@ function PdfDoc({ file, fileId, overlay }) {
 export default function PdfViewer({ files, mode, watermark, activeSignerId, placements, signers, myFill, pageFooter, onSigScale, onSigSetScale, onSigMove, onSigDelete, onSigEdit, onAdd, onMove, onRemove }) {
   const overlay = { mode, watermark, activeSignerId, placements, signers, myFill, pageFooter, onSigScale, onSigSetScale, onSigMove, onSigDelete, onSigEdit, onAdd, onMove, onRemove }
   const multi = files.length > 1 // ຫຼາຍໄຟລ໌ → ໃສ່ປ້າຍชื่อแยกแต่ละไฟล์
+  // ມີ docId → QR ຊີ້ໄປໜ້າ verify (E5) · ບໍ່ມີ (ex. mockup preview) → fallback ຊີ້ໄຟລ໌ PDF ຄືເກົ່າ
+  const verifyUrl = pageFooter?.docId ? `${window.location.origin}${import.meta.env.BASE_URL}?verify=${pageFooter.docId}` : null
   return (
     <div className="pdf-viewer">
       {files.map((f, i) => (
@@ -263,7 +265,7 @@ export default function PdfViewer({ files, mode, watermark, activeSignerId, plac
             </div>
           )}
           <PdfDoc file={f.file} fileId={f.id} overlay={pageFooter
-            ? { ...overlay, pageFooter: { ...pageFooter, url: f.srcUrl ? `${window.location.origin}${f.srcUrl}` : pageFooter.url } }
+            ? { ...overlay, pageFooter: { ...pageFooter, url: verifyUrl || (f.srcUrl ? `${window.location.origin}${f.srcUrl}` : pageFooter.url) } }
             : overlay} />
         </div>
       ))}

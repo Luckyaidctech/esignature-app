@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Icon, initials } from '../flow/shared.jsx'
+import { Icon, initials, directorySections } from '../flow/shared.jsx'
 import { nameOf, colorOf, avatarOf } from './data.js'
 
 const avBg = (id) => { const u = avatarOf(id); return u ? { backgroundImage: `url("${u}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: colorOf(id) } }
@@ -25,7 +25,8 @@ const ATTACH_OPTS = [
 
 // ── ກ່ອງຄວາມຄິດເຫັນ ໃຊ້ຮ່ວມ: ຂໍລາຍເຊັນ · ລາພັກ · ວຽກນອກ · ໂອທີ ──
 // ຄົບ: ຕອບກັບ · ແກ້ໄຂ · ລຶບ · @mention · ແນບຮູບ/ວິດີໂອ/ໄຟລ໌ (ຜູ້ຖືກ @ ໄດ້ຮັບແຈ້ງເຕືອນ)
-export default function CommentBox({ comments = [], me, people = [], locked, lockedMsg, onAdd, onEdit, onDelete }) {
+// people = ລາຍชื่อจำกัด (ใช้ตอนอยากปิดกั้น เช่น เอกสารลับ) · useFullDirectory = true → mention ได้ทุกคนในบริษัท (E14) จัดกลุ่มตามแผนก
+export default function CommentBox({ comments = [], me, people = [], useFullDirectory, locked, lockedMsg, onAdd, onEdit, onDelete }) {
   const [cmt, setCmt] = useState('')
   const [mentionIds, setMentionIds] = useState([])
   const [mentionQ, setMentionQ] = useState(null)
@@ -40,7 +41,10 @@ export default function CommentBox({ comments = [], me, people = [], locked, loc
 
   const roots = comments.filter((c) => !c.parentId)
   const repliesOf = (id) => comments.filter((c) => c.parentId === id)
-  const suggestions = mentionQ === null ? [] : people.filter((p) => p.name.toLowerCase().includes(mentionQ.toLowerCase()))
+  // useFullDirectory → ຈัดกลุ่มตามแผนก (directorySections ตัวเดียวกับ DirectoryPicker/DocDetail) · ไม่ใช่ → flat list ตาม people ที่ส่งมา
+  const mentionSections = mentionQ === null ? [] : useFullDirectory
+    ? directorySections(me, mentionQ, '').filter((sec) => sec.key !== 'me')
+    : [{ key: 'p', label: '', people: people.filter((p) => p.name.toLowerCase().includes(mentionQ.toLowerCase())) }].filter((sec) => sec.people.length)
 
   // ── contenteditable: @mention ເປັນ chip ຕົວໜາ+ສີຟ້າ inline ──
   const escHtml = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
@@ -141,13 +145,18 @@ export default function CommentBox({ comments = [], me, people = [], locked, loc
       ) : (<>
         {replyTo && <div className="dd-replybar"><span><Icon.reply /> ຕອບກັບ {replyName}</span><button onClick={cancelReply}><Icon.x /></button></div>}
         <div className="dd-cmt-wrap">
-          {suggestions.length > 0 && (
+          {mentionSections.length > 0 && (
             <div className="mention-pop">
               <p className="mention-title"><Icon.at /> ກ່າວເຖິງ (@)</p>
-              {suggestions.map((s) => (
-                <button key={s.id} className="mention-opt" onClick={() => pickMention(s)}>
-                  <span className="mention-av" style={avBg(s.id)}>{!avatarOf(s.id) && initials(s.name)}</span>{s.name}
-                </button>
+              {mentionSections.map((sec) => (
+                <div key={sec.key}>
+                  {sec.label && <p className="mention-sec-head">{sec.label}</p>}
+                  {sec.people.map((s) => (
+                    <button key={s.id} className="mention-opt" onClick={() => pickMention(s)}>
+                      <span className="mention-av" style={avBg(s.id)}>{!avatarOf(s.id) && initials(s.name)}</span>{s.name}
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
           )}

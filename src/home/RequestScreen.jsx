@@ -209,8 +209,7 @@ export function RequestDetailBody({ req, kind, me, onPreview, onComment, onEditC
     {onComment && (
       <CommentBox
         comments={req.comments || []} me={me}
-        people={[{ id: req.byId, name: nameOf(req.byId) }, ...chain.map((p) => ({ id: p.id, name: p.name }))]
-          .filter((p, i, a) => a.findIndex((x) => x.id === p.id) === i)}
+        useFullDirectory
         locked={req.status !== 'progress'}
         lockedMsg={req.status === 'approved' ? 'ຄຳຂໍນີ້ອະນຸມັດແລ້ວ' : req.status === 'rejected' ? 'ຄຳຂໍນີ້ຖືກປະຕິເສດ' : 'ຄຳຂໍນີ້ຖືກຍົກເລີກ'}
         onAdd={(t, parentId, mentions) => onComment(kind, req.id, t, parentId, mentions)}

@@ -5,7 +5,7 @@ import {
 } from './shared.jsx'
 import FilePreviewModal from './FilePreviewModal.jsx'
 import AiSummary from './AiSummary.jsx'
-import { DOC_TYPES, DOC_TYPE_INFO, docTypeRoute } from '../home/data.js'
+import { DOC_TYPES, DOC_TYPE_INFO, docTypeRoute, docPrefixOf, docTypeStyle } from '../home/data.js'
 
 // ─────────────── Directory picker (ໂຄງສ້າງອົງກອນ + sticky headers) ───────────────
 function DirectoryPicker({ open, onClose, signers, onAdd, me }) {
@@ -275,6 +275,19 @@ export default function Step1Input({ store, me = 'A', onNext, onBack }) {
             </div>
             <Icon.chevron />
           </button>
+          {/* ພรีวิว docNo (E15) — ตัวเลขจริงกำหนดตอนกดส่ง */}
+          {(() => {
+            const sty = docTypeStyle({ docType })
+            return (
+              <div className="docno-box" style={{ background: sty.soft }}>
+                <span className="docno-box-ic" style={{ background: sty.main, color: '#fff' }}>{Icon[sty.icon]()}</span>
+                <div className="docno-box-txt">
+                  <span>ຈະໄດ້ເລກທີເອກະສານ</span>
+                  <b style={{ color: sty.main }}>{docPrefixOf(docType)}-{new Date().getFullYear()}/xxx</b>
+                </div>
+              </div>
+            )
+          })()}
           {route.chain.length > 0 && (
             <p className="dtype-note"><Icon.lock /> ຂັ້ນບັງຄັບ {route.chain.length} ຂັ້ນ ຖືກໃສ່ໃຫ້ອັດຕະໂນມັດ — ລຶບ/ສະຫຼັບບໍ່ໄດ້{lockAll ? ' · ຫ້າມເພີ່ມຜູ້ອື່ນ ແລະ CC' : ''}</p>
           )}

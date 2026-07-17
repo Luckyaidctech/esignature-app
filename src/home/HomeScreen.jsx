@@ -3,8 +3,9 @@ import { Icon, initials, Header, ResultPopup, ReasonModal, ScreenPortal } from '
 import RequestScreen, { REQ_KINDS, KIND_META, ReqCard, RequestDetailBody } from './RequestScreen.jsx'
 import KnowledgeScreen, { KnowledgeDetailBody } from './KnowledgeScreen.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
-import { USERS, nameOf, colorOf, progress, isMyTurn, avatarOf, rolesLabel, sortPendingFirst, currentApprover, DOC_TYPES, docTypeOf, visibleDocs } from './data.js'
+import { USERS, nameOf, colorOf, progress, isMyTurn, avatarOf, rolesLabel, sortPendingFirst, currentApprover, DOC_TYPES, docTypeOf, docTypeStyle, DOC_TYPE_STYLE, visibleDocs } from './data.js'
 import PointsRequest from './PointsRequest.jsx'
+import CommentBox from './CommentBox.jsx'
 
 // avatar style: ຮູບໂປຣไฟล์ (ຖ້າມີ) ຫຼື ສີພື້ນ
 const avBg = (id) => { const u = avatarOf(id); return u ? { backgroundImage: `url("${u}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: colorOf(id) } }
@@ -23,25 +24,26 @@ function Av({ id, done, rej }) {
 // ─────────── document card ───────────
 function DocCard({ d, me, onOpen }) {
   const { done, total, pct } = progress(d)
+  const sty = docTypeStyle(d) // ສີ+ໄອຄอนຕາມປະເພດເອກະສານ (E11)
   const myTurn = isMyTurn(d, me)
   const rejected = d.signers.some((s) => s.status === 'rejected')
+  // Lucky ສັ່ງປ່ຽນ 17/07: ຍกเลิก ribbon "ຮอบขອງท่าน" ลอยมุมการ์ด → ใช้ badge สถานะปกติ "ລໍຖ້າດຳເນີນการ" (Pending) แทนทุกใบที่ progress
   const st = d.status === 'done'
     ? { t: 'ສຳເລັດແລ້ວ', c: 'done' }
     : d.status === 'cancelled'
       ? { t: 'ຍົກເລີກແລ້ວ', c: 'cancel' }
-      : rejected ? { t: 'ຖືກປະຕິເສດ', c: 'rej' } : { t: 'ກຳລັງດຳເນີນການ', c: '' }
+      : rejected ? { t: 'ຖືກປະຕິເສດ', c: 'rej' } : { t: 'ລໍຖ້າດຳເນີນການ', c: 'wait' }
   return (
-    <button className={`doc-card ${myTurn ? 'myturn' : ''}`} onClick={() => onOpen(d.id)}>
-      {/* ribbon "ຮອບຂອງທ່ານ" ມູມການ໌ດ — ຮູບແບບເດີມ (ຫ້າມປ່ຽນເປັນ badge ສະຖານະ) */}
-      {myTurn && <span className="doc-turn-flag"><Icon.pen /> ຮອບຂອງທ່ານ</span>}
+    <button className={`doc-card ${myTurn ? 'myturn' : ''}`} style={{ borderLeft: `4px solid ${sty.main}`, background: sty.soft }} onClick={() => onOpen(d.id)}>
       <div className="doc-card-top">
-        <span className="doc-card-icon"><Icon.doc /></span>
+        <span className="doc-card-icon" style={{ background: sty.main, color: '#fff' }}>{Icon[sty.icon]()}</span>
         <b className="doc-card-title">{d.title}</b>
-        {!myTurn && <span className={`doc-status ${st.c}`}>{st.t}</span>}
+        <span className={`doc-status ${st.c}`}>{st.t}</span>
       </div>
+      {d.docNo && <span className="doc-no">{d.docNo}</span>}
       <p className="doc-meta">ສ້າງໂດຍ: {nameOf(d.creatorId)} · {d.date}</p>
       <div className="doc-chips">
-        <span className="doc-chip type">{docTypeOf(d)}</span>
+        <span className="doc-chip type" style={{ background: '#fff', color: sty.main }}>{docTypeOf(d)}</span>
         <span className="doc-chip"><Icon.doc /> {d.files.length} ໄຟລ໌</span>
         {d.attachments.length > 0 && <span className="doc-chip alt"><Icon.layers /> ໄຟລ໌ແນບ {d.attachments.length}</span>}
         {d.creatorId !== me && !d.signers.some((s) => s.id === me) && (d.cc || []).includes(me) && <span className="doc-chip cc"><Icon.users /> CC</span>}
@@ -68,6 +70,8 @@ function DocCard({ d, me, onOpen }) {
 
 // ─────────── reusable dropdown ───────────
 const CATS = [{ key: 'all', label: 'ທຸກສະຖານະ' }, { key: 'progress', label: 'ກຳລັງດຳເນີນການ' }, { key: 'done', label: 'ສຳເລັດແລ້ວ' }, { key: 'rejected', label: 'ຖືກປະຕິເສດ' }, { key: 'cancelled', label: 'ຍົກເລີກແລ້ວ' }]
+// tab 1 "ຕ້ອງການລາຍເຊັນຂ້ອຍ" ທຸກໃບ = pending ຢູ່ແລ້ວສະເໝີ → ບໍ່ຕ້ອງກອງສະຖານະ, ກອງບົດບາດຂອງຂ້ອຍແທນ (ເຊັນ ຫຼື ອະນຸມັດ)
+const ROLE_OPTS = [{ key: 'all', label: 'ທັງໝົດ' }, { key: 'signer', label: 'ຕ້ອງເຊັນ' }, { key: 'approver', label: 'ຕ້ອງອະນຸມັດ' }]
 const CREATORS = [{ key: 'all', label: 'ຜູ້ສ້າງທັງໝົດ' }, { key: 'mine', label: 'ຂ້ອຍສ້າງ' }, { key: 'others', label: 'ຄົນອື່ນສ້າງ' }]
 const TIMES = [{ key: 'all', label: 'ທຸກໄລຍະເວລາ' }, { key: '7d', label: '7 ວັນທີ່ຜ່ານມາ' }, { key: '30d', label: '30 ວັນທີ່ຜ່ານມາ' }, { key: 'custom', label: 'ກຳນົດຊ່ວງເອງ' }]
 const parseDMY = (s) => { const [d, m, y] = s.split('/').map(Number); return new Date(y, m - 1, d) }
@@ -138,6 +142,7 @@ const DTYPES = [{ key: 'all', label: 'ທຸກປະເພດ' }, ...DOC_TYPES.
 function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('all')
+  const [role, setRole] = useState('all') // ສະເພາະ tab tosign: ບົດບາດຂອງຂ້ອຍໃນໃບນັ້ນ
   const [dtype, setDtype] = useState('all') // ປະເພດເອກະສານ
   const [who, setWho] = useState('all')
   const [time, setTime] = useState('all')
@@ -145,6 +150,7 @@ function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
   const [sort, setSort] = useState('recent')
   const [sortOpen, setSortOpen] = useState(false)
   const SORTS = mode === 'history' ? SORTS_SIGNED : SORTS_SENT
+  const isTosign = mode === 'tosign'
   const STATUS_OPTS = mode === 'history' ? CATS.filter((c) => c.key !== 'progress') : CATS
   const REF = new Date().getDate() // ໄລຍະເວລາ ນັບຈາກມື້ນີ້ຈິງ (realtime)
 
@@ -152,10 +158,12 @@ function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
     // ຄົ້ນຫາໄດ້ທັງ ຊື່ເອກະສານ ແລະ ຊື່ຜູ້ສ້າງ (ທຸກ tab)
     if (q) {
       const s = q.trim().toLowerCase()
-      if (!d.title.toLowerCase().includes(s) && !nameOf(d.creatorId).toLowerCase().includes(s)) return false
+      if (!d.title.toLowerCase().includes(s) && !nameOf(d.creatorId).toLowerCase().includes(s)
+        && !(d.docNo || '').toLowerCase().includes(s)) return false
     }
     if (dtype !== 'all' && docTypeOf(d) !== dtype) return false
-    if (cat !== 'all' && d.status !== cat) return false
+    if (isTosign) { if (role !== 'all' && d.signers.find((s) => s.id === me)?.role !== role) return false }
+    else if (cat !== 'all' && d.status !== cat) return false
     if (who === 'mine' && d.creatorId !== me) return false
     if (who === 'others' && d.creatorId === me) return false
     if (time === '7d' && REF - d.ts > 7) return false
@@ -175,15 +183,18 @@ function DocList({ docs, me, onOpen, empty, creatorMode, mode = 'cc' }) {
     return b.title.localeCompare(a.title, 'lo')
   })
   const catLabel = (STATUS_OPTS.find((c) => c.key === cat) || STATUS_OPTS[0]).label
+  const roleLabel = ROLE_OPTS.find((r) => r.key === role).label
   const timeLabel = TIMES.find((t) => t.key === time).label
 
   return (
     <>
-      <div className="home-search"><Icon.search /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ຄົ້ນຫາເອກະສານ ຫຼື ຊື່ຜູ້ສ້າງ..." /></div>
+      <div className="home-search"><Icon.search /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ຄົ້ນຫາເອກະສານ, ເລກທີ ຫຼື ຊື່ຜູ້ສ້າງ..." /></div>
       {/* ລຳດັບ filter ຄືກັນທຸກ tab: ປະເພດ → ສະຖານະ → ຜູ້ສ້າງ → ໄລຍະເວລາ → ຈັດລຳດັບ */}
       <div className="home-filters">
         <FilterDropdown btnLabel={dtype === 'all' ? 'ທຸກປະເພດ' : dtype} title="ປະເພດເອກະສານ" options={DTYPES} value={dtype} onChange={setDtype} />
-        <FilterDropdown btnLabel={`${catLabel} (${list.length})`} title="ສະຖານະ" options={STATUS_OPTS} value={cat} onChange={setCat} />
+        {isTosign
+          ? <FilterDropdown btnLabel={`${roleLabel} (${list.length})`} title="ບົດບາດຂອງທ່ານ" options={ROLE_OPTS} value={role} onChange={setRole} />
+          : <FilterDropdown btnLabel={`${catLabel} (${list.length})`} title="ສະຖານະ" options={STATUS_OPTS} value={cat} onChange={setCat} />}
         <FilterDropdown btnLabel={CREATORS.find((c) => c.key === who).label} title="ຜູ້ສ້າງ" options={CREATORS} value={who} onChange={setWho} />
         <TimeDropdown value={time} onChange={setTime} range={range} setRange={setRange} />
         <div className="sort-wrap">
@@ -365,13 +376,16 @@ function Overview({ docs, me, onOpen }) {
         <b className="ov-donut-title">ເອກະສານຮີບດ່ວນ</b>
         {urgent.length === 0
           ? <p className="empty-list sm">ບໍ່ມີເອກະສານທີ່ລໍຖ້າທ່ານ</p>
-          : urgent.map((d) => (
-            <div className="ov-urgent" key={d.id}>
-              <span className="ov-urgent-ic"><Icon.pen /></span>
-              <div className="ov-urgent-body"><b>{d.title}</b><span className="ov-urgent-time">{REF - d.ts <= 0 ? 'ມື້ນີ້' : `${REF - d.ts} ວັນກ່ອນ`}</span></div>
-              <button className="ov-urgent-go" onClick={() => onOpen(d.id)}>ໄປເຊັນ</button>
-            </div>
-          ))}
+          : urgent.map((d) => {
+            const usty = docTypeStyle(d)
+            return (
+              <div className="ov-urgent" key={d.id}>
+                <span className="ov-urgent-ic" style={{ background: usty.main, color: '#fff' }}>{Icon[usty.icon]()}</span>
+                <div className="ov-urgent-body"><b>{d.title}</b><span className="ov-urgent-time">{REF - d.ts <= 0 ? 'ມື້ນີ້' : `${REF - d.ts} ວັນກ່ອນ`}</span></div>
+                <button className="ov-urgent-go" onClick={() => onOpen(d.id)}>ໄປເຊັນ</button>
+              </div>
+            )
+          })}
       </div>
 
       {drill && (
@@ -382,13 +396,16 @@ function Overview({ docs, me, onOpen }) {
             <div className="modal-list">
               {drill.list.length === 0
                 ? <p className="empty-list sm">ບໍ່ມີເອກະສານ</p>
-                : drill.list.map((d) => (
-                  <button className="drill-row" key={d.id} onClick={() => { setDrill(null); onOpen(d.id) }}>
-                    <span className="drill-ic"><Icon.doc /></span>
-                    <div className="drill-info"><b>{d.title}</b><span>ສ້າງໂດຍ {nameOf(d.creatorId)} · {d.date}</span></div>
-                    <span className={`doc-status ${d.status === 'done' ? 'done' : d.status === 'rejected' ? 'rej' : ''}`}>{d.status === 'done' ? 'ສຳເລັດ' : d.status === 'rejected' ? 'ປະຕິເສດ' : 'ດຳເນີນການ'}</span>
-                  </button>
-                ))}
+                : drill.list.map((d) => {
+                  const dsty = docTypeStyle(d)
+                  return (
+                    <button className="drill-row" key={d.id} onClick={() => { setDrill(null); onOpen(d.id) }}>
+                      <span className="drill-ic" style={{ background: dsty.main, color: '#fff' }}>{Icon[dsty.icon]()}</span>
+                      <div className="drill-info"><b>{d.title}</b><span>{d.docNo ? `${d.docNo} · ` : ''}ສ້າງໂດຍ {nameOf(d.creatorId)} · {d.date}</span></div>
+                      <span className={`doc-status ${d.status === 'done' ? 'done' : d.status === 'rejected' ? 'rej' : ''}`}>{d.status === 'done' ? 'ສຳເລັດ' : d.status === 'rejected' ? 'ປະຕິເສດ' : 'ດຳເນີນການ'}</span>
+                    </button>
+                  )
+                })}
             </div>
           </div>
         </div>
@@ -426,10 +443,6 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
   const [acFlash, setAcFlash] = useState('')
   const [acPopup, setAcPopup] = useState(null) // { msg, ok } dark success popup
   const [acPreview, setAcPreview] = useState(null) // ໄຟລ໌ແນບ ທີ່ກຳລັງເປີດເບິ່ງ
-  const [cmtText, setCmtText] = useState('')
-  const [cmtReplyTo, setCmtReplyTo] = useState(null) // { id, name } กำลังตอบกลับ
-  const [cmtEditId, setCmtEditId] = useState(null)
-  const [cmtEditText, setCmtEditText] = useState('')
   const [rejMode, setRejMode] = useState(false)
   const [cancelMode, setCancelMode] = useState(false)
   const acAct = (m) => { setAcDetail(null); setRejMode(false); setAcFlash(m); setTimeout(() => setAcFlash(''), 2200) }
@@ -459,7 +472,7 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
     .map((d) => {
       const mine = d.signers.find((s) => s.id === me)
       const status = mine.status === 'signed' ? 'approved' : mine.status === 'rejected' ? 'rejected' : 'esign'
-      return { kind: 'esign', id: d.id, title: d.title, byId: d.creatorId, by: nameOf(d.creatorId), date: d.date, status, docId: d.id, signers: d.signers }
+      return { kind: 'esign', id: d.id, title: d.title, byId: d.creatorId, by: nameOf(d.creatorId), date: d.date, status, docId: d.id, docNo: d.docNo, docType: docTypeOf(d), signers: d.signers }
     })
   const esignPending = esignItems.filter((i) => i.status === 'esign').length // badge = ທີ່ລໍຖ້າ me ເຊັນ
   // ⚠ ຄະແນນ: ຍັງໂຊຂອງຕົນເອງຢູ່ — ເພາະໂມດູນ "ຄຳຂໍ" ຍັງບໍ່ມີ tab ຄະແນນ ໃຫ້ມັນຢູ່
@@ -501,10 +514,13 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
       ? (m.status === 'esign' ? { t: 'ລໍຖ້າລົງນາມ', c: 'wait' } : m.status === 'approved' ? { t: 'ເຊັນແລ້ວ', c: 'done' } : { t: 'ປະຕິເສດ', c: 'rej' })
       : AC_STATUS[m.status] || AC_STATUS.progress
     const CardIcon = AC_ICON[m.kind] || Icon.checkCircle
+    // ຂໍລາຍເຊັນ → ໃຊ້ສີຕາມປະເພດເອກະສານ (E11) ໃຫ້ກົງກັບການ໌ດໃນໂມດູນ e-Sign
+    const esty = isEsign ? (DOC_TYPE_STYLE[m.docType] || DOC_TYPE_STYLE['ເອກະສານທົ່ວໄປ']) : null
     // ໂຄງດຽວກັບ ReqCard → badge ຢູ່ແຖວດຽວກັບຫົວຂໍ້ ທຸກການ໌ດ (ບໍ່ແມ່ນລອຍກາງ)
     return (
-      <button className="req-card" key={m.id} onClick={() => (isEsign ? onOpen(m.docId) : setAcDetail(m))}>
-        <span className={`req-card-ic ${m.kind}`}><CardIcon /></span>
+      <button className="req-card" key={m.id} style={esty ? { borderLeft: `4px solid ${esty.main}`, background: esty.soft } : undefined}
+        onClick={() => (isEsign ? onOpen(m.docId) : setAcDetail(m))}>
+        <span className={`req-card-ic ${m.kind}`} style={esty ? { background: esty.main } : undefined}><CardIcon /></span>
         <div className="req-card-body">
           <div className="req-card-top">
             <b>{m.title}</b>
@@ -517,6 +533,7 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
           <div className="req-chips">
             <span className="req-chip">{AC_LABEL[m.kind]}</span>
             {m.sub && <span className="req-chip hl">{m.sub}</span>}
+            {m.docNo && <span className="req-chip hl">{m.docNo}</span>}
           </div>
           {/* ຜູ້ຂໍ (ຜູ້ສ້າງ request) — ໂຊທຸກປະເພດ ຮວມທັງ ຂໍລາຍເຊັນ (ລາຍລະອຽດຜູ້ເຊັນ ຢູ່ໜ້າ detail) */}
           {m.byId && (
@@ -595,49 +612,19 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
                 )
               )}
 
-              {detailReq && (() => {
-                const roots = detailReq.comments.filter((c) => !c.parentId)
-                const repliesOf = (id) => detailReq.comments.filter((c) => c.parentId === id)
-                const sendCmt = () => { if (cmtText.trim()) { onPointsComment(detailReq.id, cmtText.trim(), cmtReplyTo?.id); setCmtText(''); setCmtReplyTo(null) } }
-                const saveEdit = (c) => { if (cmtEditText.trim()) onPointsEditComment(detailReq.id, c.id, cmtEditText.trim()); setCmtEditId(null) }
-                const CmtItem = (c, reply) => {
-                  const mine = c.byId === me
-                  const editing = cmtEditId === c.id
-                  return (
-                    <div className={`dd-cmt ${reply ? 'reply' : ''}`} key={c.id}>
-                      <div className="dd-cmt-av" style={avBg(c.byId)}>{!avatarOf(c.byId) && initials(nameOf(c.byId))}</div>
-                      <div className="dd-cmt-body">
-                        <div className="dd-cmt-head"><b>{nameOf(c.byId)}</b><span>{c.time}{c.edited ? ' · ແກ້ໄຂແລ້ວ' : ''}</span></div>
-                        {editing ? (
-                          <div className="dd-cmt-edit"><input value={cmtEditText} onChange={(e) => setCmtEditText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveEdit(c)} autoFocus />
-                            <button className="dd-cmt-esave" onClick={() => saveEdit(c)}>ບັນທຶກ</button><button className="dd-cmt-ecancel" onClick={() => setCmtEditId(null)}>ຍົກເລີກ</button></div>
-                        ) : <p>{c.text}</p>}
-                        {!editing && detailReq.status === 'progress' && (
-                          <div className="dd-cmt-acts">
-                            <button className="dd-cmt-reply" onClick={() => setCmtReplyTo({ id: reply ? c.parentId : c.id, name: nameOf(c.byId) })}><Icon.reply /> ຕອບກັບ</button>
-                            {mine && (<>
-                              <button className="dd-cmt-reply" onClick={() => { setCmtEditId(c.id); setCmtEditText(c.text) }}><Icon.pen /> ແກ້ໄຂ</button>
-                              <button className="dd-cmt-reply del" onClick={() => onPointsDeleteComment(detailReq.id, c.id)}><Icon.trash /> ລຶບ</button>
-                            </>)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                }
-                return (
-                  <div className="ptd-cmt-card">
-                    <p className="ptd-card-label">ຄວາມຄິດເຫັນ ({detailReq.comments.length})</p>
-                    {detailReq.comments.length === 0 && <p className="empty-list sm" style={{ padding: '4px 0 10px' }}>ຍັງບໍ່ມີຄວາມຄິດເຫັນ</p>}
-                    {roots.map((c) => (<div key={c.id}>{CmtItem(c, false)}{repliesOf(c.id).map((r) => CmtItem(r, true))}</div>))}
-                    {cmtReplyTo && <div className="dd-replybar"><span><Icon.reply /> ຕອບກັບ {cmtReplyTo.name}</span><button onClick={() => setCmtReplyTo(null)}><Icon.x /></button></div>}
-                    <div className="dd-cmt-input" style={{ marginTop: 10 }}>
-                      <input value={cmtText} onChange={(e) => setCmtText(e.target.value)} placeholder={cmtReplyTo ? `ຕອບກັບ ${cmtReplyTo.name}...` : 'ຂຽນຄວາມຄິດເຫັນ...'} onKeyDown={(e) => e.key === 'Enter' && sendCmt()} />
-                      <button className="dd-cmt-send" onClick={sendCmt}><Icon.send /></button>
-                    </div>
-                  </div>
-                )
-              })()}
+              {detailReq && (
+                <div className="ptd-cmt-card">
+                  <p className="ptd-card-label">ຄວາມຄິດເຫັນ ({detailReq.comments.length})</p>
+                  <CommentBox
+                    comments={detailReq.comments} me={me} useFullDirectory
+                    locked={detailReq.status !== 'progress'}
+                    lockedMsg={detailReq.status === 'approved' ? 'ຄຳຂໍນີ້ອະນຸມັດແລ້ວ' : 'ຄຳຂໍນີ້ຖືກປະຕິເສດ'}
+                    onAdd={(t, parentId, mentions) => onPointsComment(detailReq.id, t, parentId, mentions)}
+                    onEdit={(cid, t) => onPointsEditComment(detailReq.id, cid, t)}
+                    onDelete={(cid) => onPointsDeleteComment(detailReq.id, cid)}
+                  />
+                </div>
+              )}
             </div>
           </div>
 

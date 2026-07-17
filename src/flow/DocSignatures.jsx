@@ -57,7 +57,7 @@ export function DocPageBody({ doc, file, wm, meId }) {
       {wm && <div className="sign-wm"><span>AIDC DOCUMENT</span></div>}
       <div className="mockdoc-head">
         <div><b>ບໍລິສັດ AIDC Tech Sole Co., Ltd</b><span>ນະຄອນຫຼວງວຽງຈັນ · ສປປ ລາວ</span></div>
-        <div className="mockdoc-ref"><span>ເລກທີ: AIDC/{doc.id}</span><span>ວັນທີ: {doc.date}</span></div>
+        <div className="mockdoc-ref"><span>ເລກທີ: {doc.docNo || `AIDC/${doc.id}`}</span><span>ວັນທີ: {doc.date}</span></div>
       </div>
       {file && <div className="mockdoc-filetag"><Icon.pdf /> {file.name}</div>}
       <h3 className="mockdoc-title">{doc.title}</h3>

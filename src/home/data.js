@@ -147,11 +147,57 @@ const DOC_TYPE_BY_ID = {
   d17: 'ສັນຍາທຸລະກິດ / MOU', d21: 'ສັນຍາທຸລະກິດ / MOU', d22: 'ສັນຍາທຸລະກິດ / MOU', d23: 'ການເງິນ-ເບີກຈ່າຍ',
 }
 export const docTypeOf = (d) => d.docType || DOC_TYPE_BY_ID[d.id] || 'ເອກະສານທົ່ວໄປ'
+
+// ── ເລກທີເອກະສານ (E15) — [prefix]-[ปีค.ศ.]/[ลำดับ 3 หลัก] ເຊັ່ນ FIN-2026/001 ──
+// ⚠ ເປັນ field ໃໝ່ ແຍກຈາກ d.id (id ຫ້າມແຕະ — seed ອ້າງອยู่) · prefix = ค่าเริ่มต้น รอ Tab 6 (Super Admin/VP) ตั้งเองได้ในอนาคต
+export const DOC_TYPE_PREFIX = {
+  'ເອກະສານທົ່ວໄປ': 'GEN', 'ເອກະສານລັບ': 'CFD', 'ເອກະສານບຸກຄະລາກອນ': 'HR', 'ສັນຍາທຸລະກິດ / MOU': 'CTR',
+  'ເອກະສານໂຄງການກໍ່ສ້າງ': 'CON', 'ການເງິນ-ເບີກຈ່າຍ': 'FIN', 'ງົບປະມານ': 'BUD', 'ຈັດຊື້ຈັດຈ້າງ': 'PUR',
+  'ເອກະສານກວດສອບພາຍໃນ': 'AUD', 'ໜັງສືອອກພາຍນອກ': 'OUT', 'ງານສື່ / ແບຣນດ໌': 'MED',
+}
+export const docPrefixOf = (type) => DOC_TYPE_PREFIX[type] || 'GEN'
+const yearOf = (dateStr) => Number((dateStr || '').split('/')[2]) || new Date().getFullYear()
+// ຄິດເລກລຳดับตัวถัดไป — นับเฉพาะใบ prefix+ปีเดียวกัน, reset 001 ทุกปีใหม่
+export function nextDocNo(docs, docType, dateStr) {
+  const prefix = docPrefixOf(docType)
+  const year = yearOf(dateStr)
+  const key = `${prefix}-${year}/`
+  const count = docs.filter((d) => d.docNo && d.docNo.startsWith(key)).length
+  return `${key}${String(count + 1).padStart(3, '0')}`
+}
+// ໃສ່ docNo ໃຫ້ seed docs ທຸກใบตอน init (ลำดับตามที่ปรากฏใน array — deterministic)
+export function withDocNos(list) {
+  const counters = {}
+  return list.map((d) => {
+    const prefix = docPrefixOf(docTypeOf(d))
+    const key = `${prefix}-${yearOf(d.date)}/`
+    counters[key] = (counters[key] || 0) + 1
+    return { ...d, docNo: `${key}${String(counters[key]).padStart(3, '0')}` }
+  })
+}
 // ── ເອກະສານລັບ: ເຫັນໄດ້ສະເພາະຜູ້ກ່ຽວຂ້ອງ (ຜູ້ສ້າງ / ຜູ້ເຊັນ / CC) — ຄົນອື່ນຫ້າມເຫັນແມ້ແຕ່ຊື່ເລື່ອງ ──
 // ໃຊ້ກັບທຸກ view ທີ່ເບິ່ງພາບລວມທັງລະບົບ (ເຊັ່ນ ລາຍງານ & ສະຖິຕິ)
 export const canSeeDoc = (d, me) => docTypeOf(d) !== 'ເອກະສານລັບ'
   || d.creatorId === me || d.signers.some((s) => s.id === me) || (d.cc || []).includes(me)
 export const visibleDocs = (docs, me) => docs.filter((d) => canSeeDoc(d, me))
+
+// ── ສີ + ໄອຄອນ ຕໍ່ປະເພດເອກະສານ (E11) — ໃຫ້ການ໌ດຈຳແນກປະເພດໄດ້ດ້ວຍສາຍຕາ ──
+// icon = ຄີຂອງ Icon (shared.jsx) · main = ສີເຂັ້ມ (ໄອຄอน+chip text) · soft = ພື້ນອ່ອນ
+// ໝາຍເຫດ: key ຕ້ອງກົງກັບ DOC_TYPES ເປັ໊ະ — ປະເພດໃໝ່ໃນ Tab 6 (ອະນາຄົດ) fallback = ທົ່ວໄປ
+export const DOC_TYPE_STYLE = {
+  'ເອກະສານທົ່ວໄປ': { main: '#64748b', soft: '#f1f5f9', icon: 'doc' },
+  'ເອກະສານລັບ': { main: '#e23b4e', soft: '#fdeaec', icon: 'lock' }, // = var(--danger) ຂອງແອັບເປັ໊ະ ກັນປົນກັບ badge "ຖືກປະຕິເສດ"
+  'ເອກະສານບຸກຄະລາກອນ': { main: '#7c3aed', soft: '#efe9fe', icon: 'users' },
+  'ສັນຍາທຸລະກິດ / MOU': { main: '#0369a1', soft: '#e0f0fa', icon: 'shield' }, // sky ເຂັ້ມ ຫ່າງຈາກ --blue primary (ປຸ່ມ/header) ພໍປະມານ
+  'ເອກະສານໂຄງການກໍ່ສ້າງ': { main: '#ea580c', soft: '#ffedd5', icon: 'building' },
+  'ການເງິນ-ເບີກຈ່າຍ': { main: '#16a34a', soft: '#e7f6ec', icon: 'money' },
+  'ງົບປະມານ': { main: '#d97706', soft: '#fdf0dd', icon: 'chart' },
+  'ຈັດຊື້ຈັດຈ້າງ': { main: '#0d9488', soft: '#d9f2ef', icon: 'cart' },
+  'ເອກະສານກວດສອບພາຍໃນ': { main: '#0891b2', soft: '#e0f5fa', icon: 'checkCircle' },
+  'ໜັງສືອອກພາຍນອກ': { main: '#db2777', soft: '#fce7f2', icon: 'send' },
+  'ງານສື່ / ແບຣນດ໌': { main: '#a21caf', soft: '#fae8ff', icon: 'image' },
+}
+export const docTypeStyle = (d) => DOC_TYPE_STYLE[docTypeOf(d)] || DOC_TYPE_STYLE['ເອກະສານທົ່ວໄປ']
 
 // ── ຂໍ້ມູນປະເພດ + ເສັ້ນທາງບັງຄັບ (Q5: demo ເຕັມ 6 ປະເພດ · ອີກ 5 ເລືອກໄດ້ ແຕ່ຍັງບໍ່ເປີດເສັ້ນທາງ) ──
 export const DOC_TYPE_INFO = {

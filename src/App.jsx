@@ -4,7 +4,7 @@ import DocDetail from './home/DocDetail.jsx'
 import SignatureFlow from './flow/SignatureFlow.jsx'
 import SignScreen from './flow/SignScreen.jsx'
 import Settings from './flow/Settings.jsx'
-import { initialDocs, initialReqs, SAMPLE_IMG, uid, nameOf, isMyTurn, approvalChain, approvedCount, nowDate } from './home/data.js'
+import { initialDocs, initialReqs, SAMPLE_IMG, uid, nameOf, isMyTurn, approvalChain, approvedCount, nowDate, docTypeOf, nextDocNo, withDocNos } from './home/data.js'
 
 // noti เริ่มต้น: แจ้งผู้เซ็นที่ถึงคิว (ให้เข้าถึง request ที่ต้องเซ็นได้ ผ่านกระดิ่ง)
 function buildInitialNotis(ds) {
@@ -34,7 +34,7 @@ function buildInitialNotis(ds) {
 export default function App() {
   const [view, setView] = useState('home') // 'home' | 'create' | 'detail' | 'sign' | 'settings'
   const [me, setMe] = useState('A')
-  const [docs, setDocs] = useState(initialDocs)
+  const [docs, setDocs] = useState(() => withDocNos(initialDocs()))
   const [notis, setNotis] = useState(() => buildInitialNotis(initialDocs())) // { id, forId, text, docId, time, read }
   const [openId, setOpenId] = useState(null)
   const [signId, setSignId] = useState(null)
@@ -104,6 +104,24 @@ export default function App() {
     return () => { cancelled = true }
   }, [])
 
+  // ── QR verify (E5) — mockup ไม่มี backend จริง → snapshot ข้อมูล doc ที่จำเป็นลง localStorage
+  //    ให้หน้า verify (VerifyScreen) อ่านได้เมื่อสแกน QR ในอุปกรณ์เดียวกันนี้ (ข้ามอุปกรณ์อื่นจะไม่เจอ)
+  useEffect(() => {
+    try {
+      const snap = Object.fromEntries(docs.filter((d) => d.docNo).map((d) => {
+        const signed = d.signers.filter((s) => s.status === 'signed' && s.time)
+        return [d.id, {
+          docNo: d.docNo, title: d.title, docType: docTypeOf(d), status: d.status,
+          createdDate: d.date, completedDate: d.status === 'done' && signed.length ? signed[signed.length - 1].time : null,
+          creatorId: d.creatorId, // id ดิบ (ไม่ resolve ชื่อ) → ใช้ nameOf() + DocPageBody mockup ในหน้า verify ได้
+          files: d.files.map((f) => f.name), attachments: (d.attachments || []).map((a) => a.name),
+          signers: d.signers.map((s) => ({ id: s.id, role: s.role, status: s.status, time: s.time || null, sigType: s.sigType || null })),
+        }]
+      }))
+      localStorage.setItem('superwork_verify', JSON.stringify(snap))
+    } catch {}
+  }, [docs])
+
   const doc = docs.find((d) => d.id === openId) || null
   // req = { kind, id } → ແຈ້ງເຕືອນຈາກຄຳຂໍ (ລາພັກ/ວຽກນອກ/ໂອທີ) ກົດເປີດເບິ່ງໄດ້
   const pushNoti = (forId, text, docId, kind = 'info', req = null) =>
@@ -116,13 +134,18 @@ export default function App() {
     if (me !== DIRECTOR) pushNoti(DIRECTOR, `${nameOf(me)} ຂໍ +${req.points} ຄະແນນ (${req.targetName})`, null, 'points', { kind: 'points', id: r.id })
     return r // ໃຫ້ໜ້າฟอร์ม → เปิด detail ຂອງ req ທີ່ສ້າງ
   }
-  const onPointsComment = (id, text, parentId) => {
-    setPointsReqs((ps) => ps.map((p) => p.id === id ? { ...p, comments: [...p.comments, { id: uid(), byId: me, time: 'ຕອນນີ້', text, parentId }] } : p))
+  // E14: @mention ໄດ້ทุกคนในบริษัท → คนที่ถูก tag ได้ noti (points ไม่มี cc concept — แค่แจ้งเตือน)
+  const onPointsComment = (id, text, parentId, mentions = []) => {
+    setPointsReqs((ps) => ps.map((p) => p.id === id ? { ...p, comments: [...p.comments, { id: uid(), byId: me, time: 'ຕອນນີ້', text, parentId, mentions }] } : p))
     const r = pointsReqs.find((p) => p.id === id)
     if (!r) return
+    const notified = new Set([me])
+    mentions.forEach((mid) => {
+      if (!notified.has(mid)) { pushNoti(mid, `${nameOf(me)} ໄດ້ກ່າວເຖິງທ່ານ (@) ໃນຄຳຂໍຄະແນນ`, null, 'mention', { kind: 'points', id }); notified.add(mid) }
+    })
     // แจ้งไปหาอีกฝ่าย (requester ↔ director)
     const other = me === r.by ? DIRECTOR : r.by
-    if (other !== me) pushNoti(other, `${nameOf(me)} ໄດ້ໃຫ້ຄວາມຄິດເຫັນໃນຄຳຂໍຄະແນນ`, null, parentId ? 'reply' : 'comment', { kind: 'points', id })
+    if (!notified.has(other)) pushNoti(other, `${nameOf(me)} ໄດ້ໃຫ້ຄວາມຄິດເຫັນໃນຄຳຂໍຄະແນນ`, null, parentId ? 'reply' : 'comment', { kind: 'points', id })
   }
   const onPointsEditComment = (reqId, cmtId, text) => setPointsReqs((ps) => ps.map((p) => p.id === reqId
     ? { ...p, comments: p.comments.map((c) => c.id === cmtId ? { ...c, text, edited: true } : c) } : p))
@@ -147,20 +170,8 @@ export default function App() {
   }
   // ── ເປີດໜ້າລົງນາມ (SignScreen) ──
   const onStartSign = (docId) => { setSignId(docId); setView('sign') }
-  // ── ຢືนยันลงนาม ແລ້ວ (ຈາก SignScreen) → mark signed + แจ้งผู้สร้าง ──
-  const markSigned = (docId, sigData = []) => {
-    setDocs((ds) => ds.map((d) => {
-      if (d.id !== docId) return d
-      const signers = d.signers.map((s) => (s.id === me ? { ...s, status: 'signed', time: 'ຕອນນີ້' } : s))
-      // ບັນທຶກລາຍເຊັນ (img + scale + ตำแหน่ง) ລົງໃນ placements ຂອງ me → ໂຊເມื่อเปิดดูภายหลัง (end-to-end)
-      const sigMap = Object.fromEntries(sigData.map((sd) => [sd.id, sd]))
-      const placements = (d.placements || []).map((p) => sigMap[p.id]
-        ? { ...p, xPct: sigMap[p.id].pos?.x ?? p.xPct, yPct: sigMap[p.id].pos?.y ?? p.yPct, sig: { img: sigMap[p.id].img, type: sigMap[p.id].type, sealImg: sigMap[p.id].sealImg, date: sigMap[p.id].date, scale: sigMap[p.id].scale } }
-        : p)
-      return { ...d, signers, placements, status: signers.every((s) => s.status === 'signed') ? 'done' : 'progress' }
-    }))
-    const d = docs.find((x) => x.id === docId)
-    if (!d) { setView('home'); return }
+  // ── noti ຫຼັງຈາກ me ເຊັນ (d = doc ก่อน update) — ใช้ร่วม markSigned (digital) + onOriginalSign (E2/E13) ──
+  const notifyAfterSign = (d, docId) => {
     // ສະຖານະຫຼັງຈາກຂ້ອຍເຊັນ (docs ຍັງເປັນຄ່າເກົ່າໃນ closure ນີ້)
     const after = d.signers.map((s) => (s.id === me ? { ...s, status: 'signed' } : s))
     const allDone = after.every((s) => s.status === 'signed')
@@ -182,6 +193,37 @@ export default function App() {
         notified.add(s.id)
       })
     }
+  }
+  // ── ຢືนยันลงนาม ແລ້ວ (ຈາก SignScreen) → mark signed + แจ้งผู้สร้าง ──
+  const markSigned = (docId, sigData = []) => {
+    setDocs((ds) => ds.map((d) => {
+      if (d.id !== docId) return d
+      const signers = d.signers.map((s) => (s.id === me ? { ...s, status: 'signed', time: 'ຕອນນີ້' } : s))
+      // ບັນທຶກລາຍເຊັນ (img + scale + ตำแหน่ง) ລົງໃນ placements ຂອງ me → ໂຊເมื่อเปิดดูภายหลัง (end-to-end)
+      const sigMap = Object.fromEntries(sigData.map((sd) => [sd.id, sd]))
+      const placements = (d.placements || []).map((p) => sigMap[p.id]
+        ? { ...p, xPct: sigMap[p.id].pos?.x ?? p.xPct, yPct: sigMap[p.id].pos?.y ?? p.yPct, sig: { img: sigMap[p.id].img, type: sigMap[p.id].type, sealImg: sigMap[p.id].sealImg, date: sigMap[p.id].date, scale: sigMap[p.id].scale } }
+        : p)
+      return { ...d, signers, placements, status: signers.every((s) => s.status === 'signed') ? 'done' : 'progress' }
+    }))
+    const d = docs.find((x) => x.id === docId)
+    if (!d) { setView('home'); return }
+    notifyAfterSign(d, docId)
+    setView('home')
+  }
+  // ── E2/E13: ລາຍເຊັນຕົ້ນສະບັບ (พิมพ์→เซ็นมือ→สแกน→อัปโหลด) — แทนที่ไฟล์แรกด้วยไฟล์ที่อัปโหลด, ไม่มี watermark, ไม่มี sign box (ทั้งหน้าคือสแกนจริง) ──
+  const onOriginalSign = (docId, filesByIndex) => {
+    setDocs((ds) => ds.map((d) => {
+      if (d.id !== docId) return d
+      // ອັບໂຫລດແທນທີ່ຄົบทุกไฟล์ (filesByIndex = { [fileIndex]: File } — ครบทุกไฟล์เพราะ SignScreen บังคับอัปโหลดครบก่อนถึงจะกด OTP ได้)
+      const files = d.files.map((f, i) => (filesByIndex[i] ? { ...f, file: filesByIndex[i], original: true } : f))
+      const signers = d.signers.map((s) => (s.id === me ? { ...s, status: 'signed', time: 'ຕອນນີ້', sigType: 'original' } : s))
+      const placements = (d.placements || []).filter((p) => p.signerId !== me) // ຊ່ອງເຊັນຂອງ me ບໍ່ຈຳເປັນແລ້ວ (ໜ້າສະແກນມີລາຍເຊັນຈິງຢູ່ແລ້ວ)
+      return { ...d, files, signers, placements, status: signers.every((s) => s.status === 'signed') ? 'done' : 'progress' }
+    }))
+    const d = docs.find((x) => x.id === docId)
+    if (!d) { setView('home'); return }
+    notifyAfterSign(d, docId)
     setView('home')
   }
   const onSaveSig = (dataURL) => setMySigs((m) => ({ ...m, [me]: dataURL }))
@@ -189,10 +231,14 @@ export default function App() {
   // biometric ເປັນ toggle ດຽວ (Face ID / ລາຍນິ້ວມື ຮ່ວມກັນ) — on/off
   const onToggleBio = () => setBios((b) => ({ ...b, [me]: !b[me] }))
   // ── เพิ่ม comment (+ ตอบกลับ + @mention) → แจ้งผู้สร้าง + เจ้าของ comment ที่ถูกตอบ + คนที่ถูก tag ──
+  // E14: tag แล้วได้สิทธิ์เห็นเอกสารถาวร (เพิ่มเป็น CC) — ยกเว้นเอกสารลับ (จำกัดเฉพาะคนในสายเดิม กันความลับรั่ว)
   const onComment = (docId, text, parentId, mentions = []) => {
-    setDocs((ds) => ds.map((d) => d.id === docId
-      ? { ...d, comments: [...d.comments, { id: uid(), byId: me, time: 'ຕອນນີ້', text, parentId, mentions }] }
-      : d))
+    setDocs((ds) => ds.map((d) => {
+      if (d.id !== docId) return d
+      const isConfidential = docTypeOf(d) === 'ເອກະສານລັບ'
+      const cc = isConfidential || !mentions.length ? d.cc : [...new Set([...(d.cc || []), ...mentions])]
+      return { ...d, comments: [...d.comments, { id: uid(), byId: me, time: 'ຕອນນີ້', text, parentId, mentions }], cc }
+    }))
     const d = docs.find((x) => x.id === docId)
     if (!d) return
     const notified = new Set([me])
@@ -205,8 +251,11 @@ export default function App() {
       const p = d.comments.find((c) => c.id === parentId)
       if (p && !notified.has(p.byId)) { pushNoti(p.byId, `${nameOf(me)} ໄດ້ຕອບກັບຄຳເຫັນຂອງທ່ານ`, docId, 'reply'); notified.add(p.byId) }
     }
-    // ผู้สร้าง → แจ้ง (ถ้ายังไม่ถูกแจ้ง)
-    if (!notified.has(d.creatorId)) { pushNoti(d.creatorId, `${nameOf(me)} ໄດ້ໃຫ້ຄວາມຄິດເຫັນໃນ "${d.title}"`, docId, 'comment'); notified.add(d.creatorId) }
+    // ບໍ່ mention ໃຜ (comment ທຳມະດາ) → ຕ້ອງແຈ້ງ "ຄົນອື່ນທັງໝົດ" ທີ່ກ່ຽວຂ້ອງກັບເອກະສານນີ້ (ຜູ້ສ້າງ + ຜູ້ເຊັນ/ຜູ້ອະນຸມັດທຸກຄົນ) ບໍ່ໃຫ້ພຽງແຕ່ fallback ຫາຜູ້ສ້າງຄົນດຽວ
+    // (ບໍ່ດັ່ງນັ້ນ ຖ້າຜູ້ສ້າງເປັນຄົນຄອມເມັນເອງ ຈະບໍ່ມີໃຜຖືກແຈ້ງເລີຍ)
+    ;[d.creatorId, ...d.signers.map((s) => s.id)].forEach((pid) => {
+      if (!notified.has(pid)) { pushNoti(pid, `${nameOf(me)} ໄດ້ໃຫ້ຄວາມຄິດເຫັນໃນ "${d.title}"`, docId, 'comment'); notified.add(pid) }
+    })
   }
   // ── ผู้สร้างยกเลิก request → แจ้งเตือนผู้เซ็นทุกคน ──
   const onCancel = (docId, reason) => {
@@ -262,8 +311,11 @@ export default function App() {
       const p = (r.comments || []).find((c) => c.id === parentId)
       if (p && !notified.has(p.byId)) { pushNoti(p.byId, `${nameOf(me)} ໄດ້ຕອບກັບຄຳເຫັນຂອງທ່ານ`, null, 'reply', { kind, id }); notified.add(p.byId) }
     }
-    // ຜູ້ຂໍ → ແຈ້ງ (ຖ້າຍັງບໍ່ຖືກແຈ້ງ)
-    if (!notified.has(r.byId)) pushNoti(r.byId, `${nameOf(me)} ໄດ້ໃຫ້ຄວາມຄິດເຫັນໃນຄຳຂໍ "${r.title}"`, null, 'comment', { kind, id })
+    // ບໍ່ mention ໃຜ (comment ທຳມະດາ) → ແຈ້ງທຸກຄົນທີ່ກ່ຽວຂ້ອງກັບคำขอนี้ (ผู้ขอ + สายอนุมัติทั้งหมด) ไม่ใช่ fallback แค่ผู้ขอคนเดียว
+    // (ບໍ່ດັ່ງນັ້ນ ຖ້າຜູ້ຂໍເປັນຄົນຄອມເມັນເອງ ຈະບໍ່ມີໃຜຖືກແຈ້ງເລີຍ)
+    ;[r.byId, ...approvalChain(r.byId, kind).map((p) => p.id)].forEach((pid) => {
+      if (!notified.has(pid)) { pushNoti(pid, `${nameOf(me)} ໄດ້ໃຫ້ຄວາມຄິດເຫັນໃນຄຳຂໍ "${r.title}"`, null, 'comment', { kind, id }); notified.add(pid) }
+    })
   }
   const onReqEditComment = (kind, id, cmtId, text) => setReqs((rs) => ({ ...rs, [kind]: (rs[kind] || []).map((r) => (r.id === id
     ? { ...r, comments: (r.comments || []).map((c) => (c.id === cmtId ? { ...c, text, edited: true } : c)) } : r)) }))
@@ -318,7 +370,9 @@ export default function App() {
 
   // ── ສ້າງ request ໃໝ່ → ບັນທຶກເຂົ້າ docs (ໂຊ tab 1) + ແຈ້ງຜູ້ເຊັນທີ່ຖึงคิว ──
   const onCreate = (doc) => {
-    setDocs((ds) => [doc, ...ds])
+    // ໃສ່ docNo (E15) — ຄິດຈາກ docs ປັດຈຸບັນ (ບໍ່ແຕະ doc.id)
+    const docWithNo = { ...doc, docNo: nextDocNo(docs, docTypeOf(doc), doc.date) }
+    setDocs((ds) => [docWithNo, ...ds])
     doc.signers.forEach((s) => { if (isMyTurn(doc, s.id)) pushNoti(s.id, `ກະລຸນາລົງນາມ "${doc.title}"`, doc.id, 'sign') })
     ;(doc.cc || []).forEach((cid) => pushNoti(cid, `ທ່ານໄດ້ຮັບສຳເນົາ (CC) "${doc.title}"`, doc.id, 'cc'))
   }
@@ -327,7 +381,7 @@ export default function App() {
   if (view === 'settings') return <Settings mySig={mySigs[me]} bio={bio} onSaveSig={onSaveSig} onDeleteSig={onDeleteSig} onToggleBio={onToggleBio} onBack={() => setView('home')} />
   if (view === 'sign') {
     const sd = docs.find((d) => d.id === signId)
-    if (sd) return <SignScreen doc={sd} mySig={mySigs[me]} bio={bio} signerName={nameOf(me)} meId={me} onSaveSig={onSaveSig} onDone={markSigned} onBack={() => setView(openId ? 'detail' : 'home')} />
+    if (sd) return <SignScreen doc={sd} mySig={mySigs[me]} bio={bio} signerName={nameOf(me)} meId={me} onSaveSig={onSaveSig} onDone={markSigned} onOriginalSign={(file) => onOriginalSign(signId, file)} onBack={() => setView(openId ? 'detail' : 'home')} />
   }
   if (view === 'detail' && doc)
     return <DocDetail doc={doc} me={me} onBack={() => setView('home')}

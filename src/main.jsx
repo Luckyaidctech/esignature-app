@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import VerifyScreen from './flow/VerifyScreen.jsx'
 import './styles.css'
 
 // iPhone 17 Pro Max device frame + status bar
@@ -63,4 +64,13 @@ function Root() {
 
 const container = document.getElementById('root')
 if (!container._reactRoot) container._reactRoot = ReactDOM.createRoot(container)
-container._reactRoot.render(<Root />)
+// ໜ້າກວດສອບເອກະສານ (E5, QR) — ບໍ່ຢູ່ໃນ device frame ເພາະເປັນໜ້າສາທารณะ ໃຜກໍ່ເປີດເບິ່ງໄດ້
+// ⚠ Root (App) mount ຢູ່ນຳສະເໝີ (ເຊື່ອງໄວ້) ເພື່ອໃຫ້ useEffect snapshot localStorage ຮັນທັນທີ ບໍ່ວ່າຈະເປີດ URL ໃດກ່ອນກໍ່ຕາມ
+//   ບໍ່ຕ້ອງເຂົ້າ "/" ກ່ອນອີກແລ້ວ — ເປີດ ?verify=xxx ກົງໆ ໄດ້ຂໍ້ມູນສົດສະເໝີ
+const verifyId = new URLSearchParams(window.location.search).get('verify')
+container._reactRoot.render(
+  <>
+    {verifyId && <VerifyScreen docId={verifyId} />}
+    <div style={verifyId ? { display: 'none' } : undefined}><Root /></div>
+  </>
+)

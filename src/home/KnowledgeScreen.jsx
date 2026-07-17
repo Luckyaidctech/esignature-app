@@ -203,7 +203,7 @@ export default function KnowledgeScreen({ me, posts = [], onCreateKn, onSubmitKn
             {live.status === 'approved' && (
               <CommentBox
                 comments={live.comments || []} me={me}
-                people={[{ id: live.byId, name: nameOf(live.byId) }]}
+                useFullDirectory
                 onAdd={(t, parentId, mentions) => onReqComment('knowledge', live.id, t, parentId, mentions)}
                 onEdit={(cid, t) => onReqEditComment('knowledge', live.id, cid, t)}
                 onDelete={(cid) => onReqDeleteComment('knowledge', live.id, cid)}

@@ -33,7 +33,7 @@ export default function FilePreviewModal({ file, onClose }) {
             <iframe src={file.url} title={file.name} style={{ width: '100%', height: '78vh', border: 'none', borderRadius: 8, background: '#fff' }} />
           ) : isPdf ? (
             <PdfViewer files={[{ name: file.name, file: file.file, id: file.fileId, srcUrl: file.srcUrl }]} mode="preview" watermark={!!file.watermark} activeSignerId={null}
-              placements={file.placements || []} signers={file.signers || []} pageFooter={{ date: file.footerDate }} onAdd={noop} onMove={noop} onRemove={noop} />
+              placements={file.placements || []} signers={file.signers || []} pageFooter={{ date: file.footerDate, docId: file.docId }} onAdd={noop} onMove={noop} onRemove={noop} />
           ) : (
             <NonPdfPreview file={file} />
           )}

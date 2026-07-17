@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
-import { Icon, Header, SectionHead, initials, ResultPopup, ReasonModal, DIRECTORY } from '../flow/shared.jsx'
+import { Icon, Header, SectionHead, initials, ResultPopup, ReasonModal, DIRECTORY, directorySections } from '../flow/shared.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
-import { nameOf, colorOf, progress, isMyTurn, avatarOf, rolesLabel, docTypeOf } from './data.js'
+import { nameOf, colorOf, progress, isMyTurn, avatarOf, rolesLabel, docTypeOf, docTypeStyle } from './data.js'
 
 // ໄຟລ໌ຕົວຢ່າງ (mock) — ຄລິກໄຟລ໌ → ເປີດເບິ່ງ PDF ຈິງ (BASE_URL → ໃຊ້ໄດ້ທັງ dev ແລະ GitHub Pages)
 const SAMPLE_PDFS = ['sample.pdf', 'super-work-agreement.pdf', 'super-work-invitation.pdf'].map((f) => `${import.meta.env.BASE_URL}${f}`)
@@ -64,7 +64,8 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
         }))
         const signed = d.signers.filter((s) => s.status === 'signed' && s.time)
         const footerDate = signed.length ? signed[signed.length - 1].time : d.date
-        setPreview({ name, file: fileObj.file, fileId: fileObj.id, srcUrl: fileObj.srcUrl, watermark: d.status !== 'done', placements: d.placements || [], signers, footerDate })
+        // E2/E13: ไฟล์ที่เซ็นแบบต้นฉบับ (print→เซ็นมือ→สแกน) ไม่มี watermark เพราะเป็นไฟล์เซ็นจริงอยู่แล้ว
+        setPreview({ name, file: fileObj.file, fileId: fileObj.id, srcUrl: fileObj.srcUrl, watermark: d.status !== 'done' && !fileObj.original, placements: d.placements || [], signers, footerDate, docId: d.id })
         return
       }
       setPreview({ name, mockup: true, mockDoc: d, mockFile: fileObj }); return
@@ -82,6 +83,7 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
 
   if (!d) return null
   const { done, total, pct } = progress(d)
+  const dsty = docTypeStyle(d) // ສີ+ໄອຄอนຕາມປະເພດເອກະສານ (E11)
   const iCreated = d.creatorId === me
   const mySig = d.signers.find((s) => s.id === me)
   const myTurn = isMyTurn(d, me)
@@ -107,10 +109,12 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
       : minPending !== Infinity ? [{ ic: Icon.clock, t: `ລໍຖ້າ ${d.signers.filter((s) => s.step === minPending && s.status !== 'signed').map((s) => nameOf(s.id)).join(', ')} ລົງນາມ`, tm: 'ຕອນນີ້', now: true }] : []),
   ]
 
-  // ── comment + @mention ──
-  const suggestions = mentionQ === null ? [] : d.signers
-    .map((s) => ({ id: s.id, name: nameOf(s.id) }))
-    .filter((s) => s.name.toLowerCase().includes(mentionQ.toLowerCase()))
+  // ── comment + @mention (E14) — tag ได้ทุกคนในบริษัท ยกเว้นเอกสารลับ (จำกัดเฉพาะคนในสายเดิม กันความลับรั่ว) ──
+  // ຈັດກຸ່ມຕາມພะแนก (directorySections ດฉบับดียวกับ DirectoryPicker Step1) — ตัดหมวด "ตัวเอง" ออก (แท็กตัวเองไม่มีประโยชน์)
+  const isConfidential = docTypeOf(d) === 'ເອກະສານລັບ'
+  const mentionSections = mentionQ === null ? [] : isConfidential
+    ? [{ key: 'chain', label: 'ຄົນໃນສາຍ', people: d.signers.map((s) => ({ id: s.id, name: nameOf(s.id) })).filter((p) => p.name.toLowerCase().includes(mentionQ.toLowerCase())) }].filter((sec) => sec.people.length)
+    : directorySections(me, mentionQ, '').filter((sec) => sec.key !== 'me')
   // ── contenteditable helpers (@mention ຕົວໜາ+ສີຟ້า inline) ──
   const escHtml = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
   const buildCeHtml = (text, ids) => {
@@ -237,18 +241,13 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
         {/* summary — ບໍ່ມີຊື່ໄຟລ໌ */}
         <div className="card">
           <div className="dd-top">
-            <span className="dd-fileicon"><Icon.pdf /><em>{d.files.length} ໄຟລ໌</em></span>
+            <span className="dd-fileicon" style={{ background: dsty.soft, color: dsty.main }}>{Icon[dsty.icon]()}<em>{d.files.length} ໄຟລ໌</em></span>
             <div className="dd-titlewrap">
               <b className="dd-title">{d.title}</b>
               <div className="dd-tags">
-                {!(myTurn && d.status === 'progress') && (
-                  <span className={`doc-status dd-badge ${d.status === 'done' ? 'ok' : d.status === 'cancelled' ? 'cancel' : d.status === 'rejected' ? 'rej' : ''}`}>
-                    {d.status === 'done' ? 'ສຳເລັດແລ້ວ' : d.status === 'cancelled' ? 'ຍົກເລີກແລ້ວ' : d.status === 'rejected' ? 'ຖືກປະຕິເສດ' : 'ກຳລັງດຳເນີນການ'}
-                  </span>
-                )}
-                <span className="doc-status dd-badge type">{docTypeOf(d)}</span>
-                {myTurn && <span className="doc-status dd-badge turn"><Icon.pen /> ຮອບຂອງທ່ານ</span>}
-                {iCreated && <span className="doc-status dd-badge mine">ທ່ານເປັນຜູ້ສ້າງ</span>}
+                <span className={`doc-status dd-badge ${d.status === 'done' ? 'ok' : d.status === 'cancelled' ? 'cancel' : d.status === 'rejected' ? 'rej' : ''}`}>
+                  {d.status === 'done' ? 'ສຳເລັດແລ້ວ' : d.status === 'cancelled' ? 'ຍົກເລີກແລ້ວ' : d.status === 'rejected' ? 'ຖືກປະຕິເສດ' : 'ກຳລັງດຳເນີນການ'}
+                </span>
               </div>
             </div>
           </div>
@@ -269,6 +268,8 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
             </div>
           </div>
           <div className="dd-meta-list">
+            <div className="dd-meta-row"><span><Icon.layers /> ປະເພດເອກະສານ</span><b style={{ color: dsty.main }}>{docTypeOf(d)}</b></div>
+            {d.docNo && <div className="dd-meta-row"><span><Icon.doc /> ເລກທີເອກະສານ</span><b>{d.docNo}</b></div>}
             <div className="dd-meta-row"><span><Icon.clock /> ສ້າງເມື່ອ</span><b>{ctime}</b></div>
             <div className="dd-meta-row"><span><Icon.pen /> ຜູ້ລົງນາມ</span><b>{d.signers.filter((s) => s.role !== 'approver').length} ຄົນ</b></div>
             {d.signers.some((s) => s.role === 'approver') && (
@@ -322,7 +323,8 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
                       <b>{nameOf(s.id)}</b>
                       <span className={`role-tag ${isApprover ? 'approver' : 'signer'}`}>{isApprover ? 'ອະນຸມັດ' : 'ລົງນາມ'}</span>
                     </div>
-                    {s.status === 'signed' && <span className="dd-tl-time">ເຊັນແລ້ວ · {s.time}</span>}
+                    {/* E2/E13: ລະບຸວິທີເຊັນ — ຕົ້ນສະບັບ (ພິມ→ເຊັນມື→ສະແກນ) ຕ້ອງແຍກອອກຈາກເຊັນ digital ໃຫ້ກວດສອບໄດ້ */}
+                    {s.status === 'signed' && <span className="dd-tl-time">ເຊັນແລ້ວ{s.sigType === 'original' ? ' (ຕົ້ນສະບັບ)' : ''} · {s.time}</span>}
                     {s.status === 'rejected' && <span className="dd-tl-time rej">ປະຕິເສດ{s.reason ? ` · ${s.reason}` : ''}</span>}
                     {active && <span className="dd-tl-time now">ຮອບນີ້ · ກຳລັງລໍຖ້າ</span>}
                   </div>
@@ -361,13 +363,18 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
           {d.status === 'progress' ? (<>
             {replyTo && <div className="dd-replybar"><span><Icon.reply /> ຕອບກັບ {replyName}</span><button onClick={cancelReply}><Icon.x /></button></div>}
             <div className="dd-cmt-wrap">
-              {suggestions.length > 0 && (
+              {mentionSections.length > 0 && (
                 <div className="mention-pop">
                   <p className="mention-title"><Icon.at /> ກ່າວເຖິງ (@)</p>
-                  {suggestions.map((s) => (
-                    <button key={s.id} className="mention-opt" onClick={() => pickMention(s)}>
-                      <span className="mention-av" style={avBg(s.id)}>{!avatarOf(s.id) && initials(s.name)}</span>{s.name}
-                    </button>
+                  {mentionSections.map((sec) => (
+                    <div key={sec.key}>
+                      <p className="mention-sec-head">{sec.label}</p>
+                      {sec.people.map((s) => (
+                        <button key={s.id} className="mention-opt" onClick={() => pickMention(s)}>
+                          <span className="mention-av" style={avBg(s.id)}>{!avatarOf(s.id) && initials(s.name)}</span>{s.name}
+                        </button>
+                      ))}
+                    </div>
                   ))}
                 </div>
               )}
