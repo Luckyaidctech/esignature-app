@@ -23,6 +23,10 @@ body {
   height: 100vh;
   overflow: hidden;
 }
+/* ⚠ ຕົ້ນເຫດ font ເພີ້ຍນ 5 ຮອບ (Lucky 19/07): button/input ບໍ່ໄດ້ inherit font ຈາກ body ໂດຍ default
+   → ຄລາສທີ່ລືມໃສ່ font-family: inherit ຈະ render ເປັນ Arial + ຕົວລາວ fallback ໄປ font ລະບົບ (ຄົນລະແບບ)
+   ກົດ global ນີ້ບັງຄັບທຸກ control ໃຊ້ Noto Sans Lao ສະເໝີ — ຫ້າມລຶບ */
+button, input, textarea, select { font-family: inherit; }
 
 /* ── iPhone 17 Pro Max device frame — render ຂະໜາດ logical ຄົງທີ່ ແລ້ວ scale ທັງກ້ອນ ── */
 .stage { height: 100vh; display: grid; place-items: center; overflow: hidden; }
@@ -309,7 +313,9 @@ body {
 .btn.primary.disabled {
   background: #d9dce4; color: #9aa1b2; cursor: not-allowed; pointer-events: none;
 }
-.btn.ghost { flex: 0 0 40%; background: #eef0f6; color: var(--ink); }
+.btn.ghost { background: #eef0f6; color: var(--ink); }
+/* 40% ສະເພາະໃນແຖວປຸ່ມຄູ່ (footer/success) — ຖ້າໃສ່ທີ່ .btn.ghost ກົງໆ ຈະກາຍເປັນ 40% ຄວາມສູງ ເມື່ອຢູ່ໃນ flex column (.scroll) */
+.footer .btn.ghost, .success-btns .btn.ghost { flex: 0 0 40%; }
 .btn.ghost:hover { background: #e4e7f0; }
 
 /* ── Success ── */
