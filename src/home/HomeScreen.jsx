@@ -440,8 +440,9 @@ const AC_CATS = [
 ]
 const AC_ICON = { esign: Icon.pen, ot: Icon.clock, leave: Icon.umbrella, offsite: Icon.briefcase, booking: Icon.calCheck, knowledge: Icon.bulb, points: Icon.chart }
 const AC_LABEL = { esign: 'ຂໍລາຍເຊັນ', ot: 'ໂອທີ', leave: 'ລາພັກ', offsite: 'ວຽກນອກສະຖານທີ', booking: 'ການຈອງ', knowledge: 'ຄວາມຮູ້', points: 'ຄະແນນ' }
-// ສີປະຈຳປະເພດ approval — ຊຸດດຽວກັບ .req-card-ic ໃນ styles.css (ຫ້າມໃຫ້ 2 ບ່ອນນີ້ຄົນລະສີ)
-const AC_COLOR = { esign: '#1f3fb5', ot: '#7c3aed', leave: '#8b5e3c', offsite: '#0891b2', booking: '#0d9488', knowledge: '#d97706', points: '#16a34a' }
+// ສີປະຈຳປະເພດ approval ໃສ່ທີ່ "ການ໌ດ" (ຂອບຊ້າຍ+ພື້ນອ່ອນ) — ຜອ./Lucky 19/07: ເບິ່ງການ໌ດແວບດຽວຮູ້ປະເພດ · tab ເທິງຄົງເດີມ
+// [main, soft] — main ຊຸດດຽວກັບ .req-card-ic ໃນ styles.css (ຫ້າມໃຫ້ 2 ບ່ອນນີ້ຄົນລະສີ)
+const AC_CARD_COLOR = { ot: ['#7c3aed', '#efe9fe'], leave: ['#8b5e3c', '#f3ece6'], offsite: ['#0891b2', '#e0f5fa'], booking: ['#0d9488', '#d9f2ef'], knowledge: ['#d97706', '#fdf0dd'], points: ['#16a34a', '#e7f6ec'] }
 // ຂໍ້ມູນຄຳຂໍ (leave/offsite/ot/booking/knowledge) ຢູ່ໃນ App.jsx (initialReqs) → ສົ່ງລົງມາທາງ props
 // ເພື່ອໃຫ້ ໂມດູນ "ຄຳຂໍ" ແລະ "ການອະນຸມັດ" ເຫັນຂໍ້ມູນຊຸດດຽວກັນ
 // ໃຊ້ class badge ດຽວກັບການ໌ດຄຳຂໍ (.req-badge) → ທຸກການ໌ດໃນ tab "ທັງໝົດ" ໜ້າຕາເທົ່າກັນ
@@ -519,19 +520,21 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
   }
 
   const Card = (m) => {
-    // ຄຳຂໍທົ່ວໄປ → ໃຊ້ການ໌ດອັນດຽວກັບໂມດູນ "ຄຳຂໍ" (ຄົບ: ປະເພດ · ວັນເວລາ · ຊົ່ວໂມງ · ເຫດຜົນ · ໄຟລ໌ແນບ · ຜູ້ຂໍ+avatar)
-    if (KIND_META[m.kind]) return <ReqCard key={m.id} r={m} kind={m.kind} showBy onOpen={() => setAcDetail(m)} />
+    // ຄຳຂໍທົ່ວໄປ → ໃຊ້ການ໌ດອັນດຽວກັບໂມດູນ "ຄຳຂໍ" + ສີ/ປ້າຍປະເພດ (ສະເພາະໃນ Approval — ໂມດູນ ຄຳຂໍ ຄົງເດີມ)
+    if (KIND_META[m.kind]) return <ReqCard key={m.id} r={m} kind={m.kind} showBy accent={AC_CARD_COLOR[m.kind]} kindLabel={AC_LABEL[m.kind]} onOpen={() => setAcDetail(m)} />
     const isEsign = m.kind === 'esign'
     const st = isEsign
       // badge ບອກຕາມບົດບາດຈິງ: approver = ອະນຸມັດ / signer = ລົງນາມ (Take ຮັບມອບອະນຸມັດ ແຕ່ເຫັນ "ລໍຖ້າລົງນາມ" → ສັບສົນ, Lucky 19/07)
       ? (m.status === 'esign' ? { t: m.myRole === 'approver' ? 'ລໍຖ້າອະນຸມັດ' : 'ລໍຖ້າລົງນາມ', c: 'wait' } : m.status === 'approved' ? { t: m.myRole === 'approver' ? 'ອະນຸມັດແລ້ວ' : 'ເຊັນແລ້ວ', c: 'done' } : { t: 'ປະຕິເສດ', c: 'rej' })
       : AC_STATUS[m.status] || AC_STATUS.progress
     const CardIcon = AC_ICON[m.kind] || Icon.checkCircle
-    // ຂໍລາຍເຊັນ → ໃຊ້ສີຕາມປະເພດເອກະສານ (E11) ໃຫ້ກົງກັບການ໌ດໃນໂມດູນ e-Sign
+    // ຂໍລາຍເຊັນ → ສີຕາມປະເພດເອກະສານ (E11) · ປະເພດອື່ນ (ຄະແນນ...) → ສີປະຈຳປະເພດ
     const esty = isEsign ? (DOC_TYPE_STYLE[m.docType] || DOC_TYPE_STYLE['ເອກະສານທົ່ວໄປ']) : null
+    const kc = !isEsign ? AC_CARD_COLOR[m.kind] : null
     // ໂຄງດຽວກັບ ReqCard → badge ຢູ່ແຖວດຽວກັບຫົວຂໍ້ ທຸກການ໌ດ (ບໍ່ແມ່ນລອຍກາງ)
     return (
-      <button className="req-card" key={m.id} style={esty ? { borderLeft: `4px solid ${esty.main}`, background: esty.soft } : undefined}
+      <button className="req-card" key={m.id}
+        style={esty ? { borderLeft: `4px solid ${esty.main}`, background: esty.soft } : kc ? { borderLeft: `4px solid ${kc[0]}`, background: kc[1] } : undefined}
         onClick={() => (isEsign ? onOpen(m.docId) : setAcDetail(m))}>
         <span className={`req-card-ic ${m.kind}`} style={esty ? { background: esty.main } : undefined}><CardIcon /></span>
         <div className="req-card-body">
@@ -562,19 +565,13 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
   }
   return (
     <>
-      {/* chip ແຕ່ລະປະເພດມີສີປະຈຳຕົວ — ເບິ່ງແວບດຽວຮູ້ວ່າ approval ປະເພດໃດ (ຜອ. ສັ່ງ, Lucky 19/07)
-          ສີຊຸດດຽວກັບໄອຄອນການ໌ດ (req-card-ic) ໃຫ້ຈື່ງ່າຍ · ຂໍລາຍເຊັນ=ນ້ຳເງິນ ໂອທີ=ມ່ວງ ລາພັກ=ນ້ຳຕານ ວຽກນອກ=ຟ້າ ຈອງ=ຂຽວທະເລ ຄວາມຮູ້=ສົ້ມ ຄະແນນ=ຂຽວ */}
+      {/* tab ເທິງ = ຮູບແບບເດີມ (Lucky 19/07: ສີໃສ່ທີ່ການ໌ດ ບໍ່ແມ່ນ tab) */}
       <div className="ac-cats">
-        {AC_CATS.map((c) => {
-          const col = AC_COLOR[c.key]
-          const on = cat === c.key
-          const style = col ? (on ? { background: col, borderColor: col, color: '#fff' } : { color: col, borderColor: `${col}66` }) : undefined
-          return (
-            <button key={c.key} className={`ac-cat ${on ? 'on' : ''}`} style={style} onClick={() => setCat(c.key)}>
-              {c.icon()}<span>{c.label}</span>{pendingOf(c.key) > 0 && <em>{pendingOf(c.key)}</em>}
-            </button>
-          )
-        })}
+        {AC_CATS.map((c) => (
+          <button key={c.key} className={`ac-cat ${cat === c.key ? 'on' : ''}`} onClick={() => setCat(c.key)}>
+            {c.icon()}<span>{c.label}</span>{pendingOf(c.key) > 0 && <em>{pendingOf(c.key)}</em>}
+          </button>
+        ))}
       </div>
       <div className="ac-sf">
         {AC_SF.map((s) => (

@@ -27,13 +27,14 @@ const REQ_STATUS = {
 
 // ── ການ໌ດຄຳຂໍ — ໂຄງດຽວກັນທັງ 3 ໝວດ, ຕ່າງກັນແຕ່ chip ສະເພາະໝວດ ──
 // ລາພັກ: ຈຳນວນມື້ + ຊົ່ວໂມງ · ວຽກນອກ: ສະຖານທີ + ຊົ່ວໂມງ · ໂອທີ: ຊົ່ວໂມງ
-export function ReqCard({ r, kind, showBy, onOpen }) {
+export function ReqCard({ r, kind, showBy, accent, kindLabel, onOpen }) {
   // ໃຊ້ KIND_META (5 ໝວດ) ບໍ່ແມ່ນ REQ_KINDS (3 ໝວດ) — ໂມດູນ ອະນຸມັດ ມີ ຈອງ/ຄວາມຮູ້ ນຳ
+  // accent [main, soft] + kindLabel: ໂມດູນ Approval ສົ່ງມາ ເພື່ອໃຫ້ການ໌ດມີສີ+ປ້າຍຕາມປະເພດ (Lucky 19/07) — ໂມດູນ ຄຳຂໍ ບໍ່ສົ່ງ = ໜ້າຕາເດີມ
   const k = KIND_META[kind] || KIND_META.leave
   const st = REQ_STATUS[r.status] || REQ_STATUS.progress
   const t = reqTime(r)
   return (
-    <button className="req-card" onClick={() => onOpen(r)}>
+    <button className="req-card" style={accent ? { borderLeft: `4px solid ${accent[0]}`, background: accent[1] } : undefined} onClick={() => onOpen(r)}>
       <span className={`req-card-ic ${k.ic}`}>{k.icon()}</span>
       <div className="req-card-body">
         <div className="req-card-top">
@@ -45,6 +46,7 @@ export function ReqCard({ r, kind, showBy, onOpen }) {
           {r.from && <><Icon.clock /> {r.from} – {r.to}</>}
         </span>
         <div className="req-chips">
+          {kindLabel && <span className="req-chip" style={accent ? { color: accent[0], background: '#fff' } : undefined}>{kindLabel}</span>}
           {kind === 'leave' && t.days > 1 && <span className="req-chip hl"><Icon.calendar /> {t.days} ມື້</span>}
           {kind === 'offsite' && r.note && <span className="req-chip"><Icon.pin /> {r.note}</span>}
           {t.totalText && <span className="req-chip hl"><Icon.clock /> {t.totalText}</span>}
