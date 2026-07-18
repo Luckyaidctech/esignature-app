@@ -416,7 +416,7 @@ export default function App() {
     ;(doc.cc || []).forEach((cid) => pushNoti(cid, `ທ່ານໄດ້ຮັບສຳເນົາ (CC) "${doc.title}"`, doc.id, 'cc'))
   }
 
-  if (view === 'create') return <SignatureFlow me={me} docSubtypes={docSubtypes} onCreate={onCreate} onExit={() => setView('home')} />
+  if (view === 'create') return <SignatureFlow me={me} docSubtypes={docSubtypes} docs={docs} onCreate={onCreate} onExit={() => setView('home')} />
   if (view === 'settings') return <Settings mySig={mySigs[me]} bio={bio} onSaveSig={onSaveSig} onDeleteSig={onDeleteSig} onToggleBio={onToggleBio}
     canManageFlow={canManageFlowSettings(me)} onOpenFlowSettings={() => setView('flowSettings')} onBack={() => setView('home')} />
   if (view === 'flowSettings') return <FlowSettingsScreen subtypes={docSubtypes} defaultSubtypes={DEFAULT_DOC_SUBTYPES}

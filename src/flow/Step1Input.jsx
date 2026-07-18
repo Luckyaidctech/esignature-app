@@ -138,7 +138,7 @@ function RoleSeg({ role, onChange }) {
 
 export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBack }) {
   const {
-    title, setTitle, docType, setDocType, docSubtype, setDocSubtype, otherTypeName, setOtherTypeName,
+    title, setTitle, docType, setDocType, docSubtype, setDocSubtype, otherTypeName, setOtherTypeName, docNoPreview,
     pdfs, setPdfs, attachments, setAttachments, signers, setSigners,
   } = store
   // ໃຊ້ subtypes ຈາກ App (Tab 6 ອາດແກ້ chain ໄວ້) — ບໍ່ມີ prop ສົ່ງມາ → fallback default
@@ -324,7 +324,7 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
 
         {/* ── ປະເພດເອກະສານ (E7/E8/E10) — ເລືອກປະເພດ + ກຳນົດເສັ້ນທາງ ຢູ່ບ່ອນດຽວກັນ (Lucky ສັ່ງ 18/07: ຢ່າເອົາໄປໄວ້ໂຊນຜູ້ເຊັນ/CC) ── */}
         <div className="card">
-          <SectionHead icon={<Icon.layers />} title="ປະເພດເອກະສານ" sub="ເລືອກປະເພດ ແລ້ວກຳນົດເສັ້ນທາງເອງ ຫຼື ໃຊ້ມາດຕະຖານ" />
+          <SectionHead icon={<Icon.layers />} title="ປະເພດເອກະສານ" sub="ເລືອກປະເພດ" />
           <button className="dtype-btn" onClick={() => setTypeOpen(true)}>
             <span className="dtype-btn-ic" style={{ background: currentCat.soft, color: currentCat.main }}>{Icon[currentCat.icon] ? Icon[currentCat.icon]() : <Icon.doc />}</span>
             <div className="dtype-btn-info">
@@ -339,16 +339,16 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
               placeholder="ພິມຊື່ປະເພດເອກະສານ ເຊັ່ນ ໃບຂໍຢືມອຸປະກອນ..."
               onChange={(e) => setOtherTypeName(e.target.value)} />
           )}
-          {/* ພรีวิว docNo (E15) — ตัวเลขจริงกำหนดตอนกดส่ง */}
+          {/* ເລກທີເອກະສານ — ໂຊເລກເຕັມຈິງເລີຍ (Lucky 18/07: ບໍ່ໃຊ້ xxx) */}
           <div className="docno-box" style={{ background: currentCat.soft }}>
             <span className="docno-box-ic" style={{ background: currentCat.main, color: '#fff' }}>{Icon[currentCat.icon] ? Icon[currentCat.icon]() : <Icon.doc />}</span>
             <div className="docno-box-txt">
-              <span>ຈະໄດ້ເລກທີເອກະສານ</span>
-              <b style={{ color: currentCat.main }}>{currentSub.prefix}-{new Date().getFullYear()}/xxx</b>
+              <span>ເລກທີເອກະສານ</span>
+              <b style={{ color: currentCat.main }}>{docNoPreview}</b>
             </div>
           </div>
-          {/* Dynamic ↔ No-Dynamic — ໂຊສະເພາະປະເພດທີ່ມີເສັ້ນທາງມາດຕະຖານແທ້ · ເອກະສານລັບ ບັງຄັບ No-Dynamic ສະເໝີ (ເຊື່ອງ toggle) */}
-          {!currentSub.lockAll && baseRoute.chain.length > 0 && (
+          {/* Dynamic ↔ No-Dynamic — ໂຊສະເໝີ (Lucky 18/07: ບ່ອນເລືອກຕ້ອງບໍ່ຫາຍ) · ຍົກເວັ້ນເອກະສານລັບ ບັງຄັບ No-Dynamic */}
+          {!currentSub.lockAll && (
             <div className="seg" style={{ marginTop: 10 }}>
               <button className={`seg-btn ${!dynamicMode ? 'on approver' : ''}`} onClick={() => toggleDynamic(false)}>ໃຊ້ເສັ້ນທາງມາດຕະຖານ</button>
               <button className={`seg-btn ${dynamicMode ? 'on signer' : ''}`} onClick={() => toggleDynamic(true)}>ເລືອກຜູ້ລົງນາມເອງ</button>
@@ -372,9 +372,6 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
           )}
           {dynamicMode && (
             <p className="dtype-note free"><Icon.pen /> ເລືອກຜູ້ລົງນາມເອງ — ເພີ່ມຄົນທີ່ຫ້ອງ "ຜູ້ລົງນາມ &amp; ຮັບສຳເນົາ" ຂ້າງລຸ່ມ</p>
-          )}
-          {!currentSub.lockAll && baseRoute.chain.length === 0 && !dynamicMode && (
-            <p className="dtype-note free"><Icon.pen /> ປະເພດນີ້ບໍ່ມີເສັ້ນທາງມາດຕະຖານ — ເລືອກຜູ້ລົງນາມເອງທີ່ຫ້ອງ "ຜູ້ລົງນາມ &amp; ຮັບສຳເນົາ" ຂ້າງລຸ່ມ</p>
           )}
         </div>
 

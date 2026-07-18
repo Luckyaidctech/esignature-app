@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Icon, groupSignatories, isOrdered, normalizeSteps, uid } from './shared.jsx'
-import { nowDate } from '../home/data.js'
+import { nowDate, nextDocNo } from '../home/data.js'
 import Step1Input from './Step1Input.jsx'
 import Step2Place from './Step2Place.jsx'
 import Step3Send from './Step3Send.jsx'
 
-export default function SignatureFlow({ onExit, onCreate, me = 'A', docSubtypes }) {
+export default function SignatureFlow({ onExit, onCreate, me = 'A', docSubtypes, docs = [] }) {
   const [screen, setScreen] = useState(1)
   const [done, setDone] = useState(false)
 
@@ -20,9 +20,11 @@ export default function SignatureFlow({ onExit, onCreate, me = 'A', docSubtypes 
 
   // prefix ເລກທີເອກະສານ ຈາກ subtypes ສົດ (Tab 6 ອາດແກ້/ເພີ່ມ) — ຫ້າມອ່ານ DEFAULT ຕອນສ້າງຈິງ ບໍ່ດັ່ງນັ້ນ preview ກັບເລກຈິງບໍ່ກົງກັນ
   const docPrefix = docSubtype === 'other' ? 'OTH' : ((docSubtypes || []).find((s) => s.key === docSubtype)?.prefix || 'GEN')
+  // ເລກທີເຕັມ ຄິດຈາກ docs ຈິງ (Lucky 18/07: ໂຊເລກເຕັມເລີຍ ບໍ່ແມ່ນ xxx) — ເລກດຽວກັນນີ້ຈະຖືກໃຊ້ຕອນສົ່ງຈິງ
+  const docNoPreview = nextDocNo(docs, { docPrefix }, nowDate())
 
   const store = {
-    title, setTitle, docType, setDocType, docSubtype, setDocSubtype, otherTypeName, setOtherTypeName, docPrefix,
+    title, setTitle, docType, setDocType, docSubtype, setDocSubtype, otherTypeName, setOtherTypeName, docPrefix, docNoPreview,
     pdfs, setPdfs, attachments, setAttachments, signers, setSigners, placements, setPlacements,
   }
 
