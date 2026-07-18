@@ -342,13 +342,7 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
             })}
           </div>
           {/* E3/E12: มอบหมายให้คนอื่นเซ็น/อนุมัติแทน — เฉพาะที่นั่งของตัวเอง, ไม่ใช่เอกสารลับ */}
-          {/* ປຸ່ມມອບໝາຍ = pill ນ້ອຍ ໃຕ້ລາຍຊື່ (Lucky 19/07: ປຸ່ມເຕັມແຖວໜັກເກີນ · ລິ້ງນ້ອຍກໍຫາບໍ່ເຈິ → ເອົາກາງ)
-              ຢູ່ນີ້ເພາະການມອບໝາຍເປັນ action ຂອງ "ທີ່ນັ່ງຂອງຂ້ອຍ" ໃນສາຍເຊັນ ບໍ່ແມ່ນ action ຕັດສິນເອກະສານ (ບໍ່ຄວນຢູ່ແຖບປຸ່ມລຸ່ມ) */}
-          {canAssign && (
-            <button className="assign-pill" onClick={() => setAssignOpen(true)}>
-              <Icon.swap /> ມອບໝາຍໃຫ້ຄົນອື່ນ{mySig.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'}ແທນ
-            </button>
-          )}
+          {/* ປຸ່ມມອບໝາຍ ຍ້າຍໄປແຖບປຸ່ມລຸ່ມ (Lucky ເຄາະ 19/07: 3 ປຸ່ມ ປະຕິເສດ·ມອບໝາຍ·ລົງນາມ/ອະນຸມັດ) — ບ່ອນນີ້ເຫຼືອສະເພາະປຸ່ມດຶງຄືນ */}
           {canRevoke && (
             <button className="assign-pill danger" onClick={() => onRevokeAssign(d.id, myOwnSeat.id)}>
               <Icon.x /> ດຶງການມອບໝາຍຄືນຈາກ {nameOf(myOwnSeat.assignedTo)}
@@ -450,7 +444,9 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
           <button className="btn ghost" onClick={() => act('ສ້າງລິ້ງແບ່ງປັນທັງໝົດ')}><Icon.share /> ແບ່ງປັນທັງໝົດ</button>
           <button className="btn primary" onClick={() => act('ດາວໂຫລດເອກະສານທັງໝົດ')}><Icon.download /> ດາວໂຫລດທັງໝົດ</button>
         </>) : myTurn ? (<>
-          <button className="btn danger" onClick={() => (iCreated ? setCancelOpen(true) : setRejectOpen(true))}><Icon.x /> {iCreated ? 'ຍົກເລີກຄຳຂໍ' : 'ປະຕິເສດ'}</button>
+          {/* Lucky ເຄາະ 19/07: ແຖວປຸ່ມ 3 ອັນ — ປະຕິເສດ · ມອບໝາຍ · ລົງນາມ/ອະນຸມັດ */}
+          <button className="btn danger" onClick={() => (iCreated ? setCancelOpen(true) : setRejectOpen(true))}><Icon.x /> {iCreated ? 'ຍົກເລີກ' : 'ປະຕິເສດ'}</button>
+          {canAssign && <button className="btn ghost" style={{ flex: '0 0 auto' }} onClick={() => setAssignOpen(true)}><Icon.swap /> ມອບໝາຍ</button>}
           {/* ຜູ້ອະນຸມັດ ບໍ່ມີຊ່ອງເຊັນ → ອະນຸມັດກົງ ບໍ່ຜ່ານໜ້າວາງລາຍເຊັນ (ບໍ່ດັ່ງນັ້ນຕິດ loop 0/0 ຊ່ອງ) */}
           {mySig?.role === 'approver'
             ? <button className="btn primary" onClick={() => setApproveOpen(true)}><Icon.check /> ອະນຸມັດ</button>
