@@ -562,7 +562,8 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
             {/* ຂໍລາຍເຊັນ: ບອກປະເພດເອກະສານ ເທິງການ໌ດເລີຍ (Lucky 19/07) */}
             {isEsign && m.docType && <span className="req-chip" style={{ color: kc[0], background: '#fff' }}>{m.docType}</span>}
             {m.sub && <span className="req-chip hl">{m.sub}</span>}
-            {m.docNo && <span className="req-chip hl">{m.docNo}</span>}
+            {/* ເລກທີ = ເທົາກາງ (Lucky ເຄາະ 19/07) */}
+            {m.docNo && <span className="req-chip">{m.docNo}</span>}
             {/* ໃບທີ່ຮັບມອບມາ — ຊື່ເຕັມ ຫ້າມຕັດ + ສີຕາມການ໌ດ (Lucky 19/07) */}
             {m.recvFrom && <span className="req-chip chip-wrap" style={{ color: kc[0], background: '#fff' }}><Icon.swap /> ຮັບມອບຈາກ {nameOf(m.recvFrom)}</span>}
           </div>
