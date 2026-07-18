@@ -1,4 +1,4 @@
-import { DIRECTORY } from '../flow/shared.jsx'
+import { DIRECTORY, DEPTS } from '../flow/shared.jsx'
 
 // ຮູບໂປຣໄຟລ໌ demo (data URI SVG) — ຄົນທີ່ບໍ່ມີ avatarUrl ຈະໃຊ້ initials
 const PHOTO_A = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%232563eb'/%3E%3Ccircle cx='20' cy='15.5' r='7' fill='%23dbeafe'/%3E%3Cpath d='M7 37c0-7.5 5.5-11.5 13-11.5S33 29.5 33 37z' fill='%23dbeafe'/%3E%3C/svg%3E"
@@ -156,10 +156,15 @@ export const DOC_TYPE_PREFIX = {
   'ເອກະສານກວດສອບພາຍໃນ': 'AUD', 'ໜັງສືອອກພາຍນອກ': 'OUT', 'ງານສື່ / ແບຣນດ໌': 'MED',
 }
 export const docPrefixOf = (type) => DOC_TYPE_PREFIX[type] || 'GEN'
+// ເອກະສານທີ່ມີ docSubtype (E7/E8/E10, ຍ່ອຍກວ່າ) → ໃຊ້ prefix ຂອງຍ່ອຍນັ້ນ · ບໍ່ມີ (seed ເກົ່າ) → fallback prefix legacy 11-ประเภท
+export const docPrefixOfDoc = (d) => {
+  const sub = d.docSubtype && DEFAULT_DOC_SUBTYPES.find((s) => s.key === d.docSubtype)
+  return sub ? sub.prefix : docPrefixOf(docTypeOf(d))
+}
 const yearOf = (dateStr) => Number((dateStr || '').split('/')[2]) || new Date().getFullYear()
 // ຄິດເລກລຳดับตัวถัดไป — นับเฉพาะใบ prefix+ปีเดียวกัน, reset 001 ทุกปีใหม่
-export function nextDocNo(docs, docType, dateStr) {
-  const prefix = docPrefixOf(docType)
+export function nextDocNo(docs, doc, dateStr) {
+  const prefix = docPrefixOfDoc(doc)
   const year = yearOf(dateStr)
   const key = `${prefix}-${year}/`
   const count = docs.filter((d) => d.docNo && d.docNo.startsWith(key)).length
@@ -169,7 +174,7 @@ export function nextDocNo(docs, docType, dateStr) {
 export function withDocNos(list) {
   const counters = {}
   return list.map((d) => {
-    const prefix = docPrefixOf(docTypeOf(d))
+    const prefix = docPrefixOfDoc(d)
     const key = `${prefix}-${yearOf(d.date)}/`
     counters[key] = (counters[key] || 0) + 1
     return { ...d, docNo: `${key}${String(counters[key]).padStart(3, '0')}` }
@@ -236,6 +241,136 @@ export function docTypeRoute(type, meId) {
     cc: cc.filter(Boolean).filter((p) => !seen.has(p.id)).map((p) => ({ ...p, step: null })),
     lockAll,
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// E7/E8/E10: Catalog 2 ชั้น (หมวดตามแผนก → เอกสารย่อย 33 ชนิด) — ตาม DOC-TYPES-CATALOG.md (Lucky ล็อกแล้ว 18/07)
+// Tab 6 (Flow Signature Approval Setting) แก้ chain/cc ของแต่ละเอกสารย่อยได้ (rank ∈ {deputy, director})
+// ⚠ ไม่แตะ DOC_TYPES/docTypeRoute/DOC_TYPE_STYLE/DOC_TYPE_PREFIX เดิม (11 ประเภท) — ยังใช้เป็น "หมวดกว้าง" คู่ขนานสำหรับ filter/สี/prefix เดิมที่ทดสอบแล้ว
+//   เอกสารที่สร้างผ่านเอกสารย่อยใหม่ จะ map กลับเข้า docType (11 ประเภทเดิม) อัตโนมัติ ผ่าน CATEGORY_TO_LEGACY_TYPE — ของเดิมไม่พัง
+// ══════════════════════════════════════════════════════════════════════════
+export const DOC_CATEGORIES = {
+  general:      { label: 'ຂ້າມພະແນກ',              main: '#64748b', soft: '#f1f5f9', icon: 'doc' },
+  finance:      { label: 'Finance',                  main: '#16a34a', soft: '#e7f6ec', icon: 'money' },
+  acct:         { label: 'Accounting',               main: '#0d9488', soft: '#d9f2ef', icon: 'file' },
+  budget:       { label: 'Budgeting',                main: '#d97706', soft: '#fdf0dd', icon: 'chart' },
+  hr:           { label: 'HR and Admin',             main: '#7c3aed', soft: '#efe9fe', icon: 'users' },
+  legal:        { label: 'Legal',                    main: '#4f46e5', soft: '#e8e9fd', icon: 'shield' },
+  bd:           { label: 'Business Development',     main: '#2563eb', soft: '#eaeefb', icon: 'briefcase' },
+  construction: { label: 'Construction',             main: '#ea580c', soft: '#ffedd5', icon: 'building' },
+  audit:        { label: 'Internal Audit',           main: '#0891b2', soft: '#e0f5fa', icon: 'checkCircle' },
+  corp:         { label: 'Corporate Affairs',        main: '#db2777', soft: '#fce7f2', icon: 'send' },
+  studio:       { label: 'Digital Studio',           main: '#a21caf', soft: '#fae8ff', icon: 'image' },
+  it:           { label: 'IT / Infrastructure',      main: '#0284c7', soft: '#e0f2fe', icon: 'layers' },
+}
+// map หมวดใหม่ → docType เดิม (11 ประเภท) เพื่อคง E11/E15/filter เดิมไว้ทั้งหมด
+const CATEGORY_TO_LEGACY_TYPE = {
+  general: 'ເອກະສານທົ່ວໄປ', finance: 'ການເງິນ-ເບີກຈ່າຍ', acct: 'ການເງິນ-ເບີກຈ່າຍ', budget: 'ງົບປະມານ',
+  hr: 'ເອກະສານບຸກຄະລາກອນ', legal: 'ສັນຍາທຸລະກິດ / MOU', bd: 'ສັນຍາທຸລະກິດ / MOU', construction: 'ເອກະສານໂຄງການກໍ່ສ້າງ',
+  audit: 'ເອກະສານກວດສອບພາຍໃນ', corp: 'ໜັງສືອອກພາຍນອກ', studio: 'ງານສື່ / ແບຣນດ໌', it: 'ເອກະສານທົ່ວໄປ',
+}
+
+// ── stub ຄ່າ chain: 'president' | 'creatorHead' (ຫົວໜ້າຕົ້ນສັງກັດຜູ້ສ້າง) | { dept: 'xxx' } (ຫົວໜ້າພະແนกนั้น) ──
+const P_ = 'president', H_ = 'creatorHead'
+// ⚠ chain/cc ນີ້ = ຄ່າ default (No-Dynamic) ເທົ່ານັ້ນ — Super Admin/VP ແກ້ຜ່ານ Tab 6 ໄດ້ (setDocSubtypes state ໃນ App.jsx)
+export const DEFAULT_DOC_SUBTYPES = [
+  // ─ ຂ້າມພະແນກ ─
+  { key: 'gen', category: 'general', name: 'ເອກະສານທົ່ວໄປ', prefix: 'GEN', chain: [] },
+  { key: 'memo', category: 'general', name: 'ບົດບັນທຶກ', prefix: 'MEMO', chain: [] },
+  { key: 'mtg', category: 'general', name: 'ໜັງສືເຊີນປະຊຸມ', prefix: 'MTG', chain: [] },
+  { key: 'cfd', category: 'general', name: 'ເອກະສານລັບ', prefix: 'CFD', chain: [P_], lockAll: true },
+  // ─ Finance ─
+  { key: 'exp', category: 'finance', name: 'ໃບເບີກຈ່າຍ', prefix: 'EXP', chain: [H_, { dept: 'finance' }, P_], cc: [{ dept: 'acct' }] },
+  { key: 'pay', category: 'finance', name: 'ໃບສຳຄັນຈ່າຍ', prefix: 'PAY', chain: [{ dept: 'finance' }, P_] },
+  { key: 'fnd', category: 'finance', name: 'ໃບຂໍເບີກງົບ', prefix: 'FND', chain: [H_, { dept: 'finance' }, P_] },
+  // ─ Accounting ─
+  { key: 'rct', category: 'acct', name: 'ໃບຮັບເງິນ', prefix: 'RCT', chain: [{ dept: 'acct' }, { dept: 'finance' }] },
+  { key: 'frp', category: 'acct', name: 'ບົດລາຍງານການເງິນປະຈຳເດືອນ', prefix: 'FRP', chain: [{ dept: 'acct' }, { dept: 'finance' }, P_] },
+  { key: 'pur', category: 'acct', name: 'ໃບຂໍຈັດຊື້ຈັດຈ້າງ', prefix: 'PUR', chain: [H_, { dept: 'acct' }, { dept: 'finance' }, P_] },
+  // ─ Budgeting ─
+  { key: 'bud', category: 'budget', name: 'ໃບສະເໜີແຜນງົບປະມານ', prefix: 'BUD', chain: [{ dept: 'budget' }, { dept: 'finance' }, P_] },
+  { key: 'bad', category: 'budget', name: 'ໃບຂໍອະນຸມັດປັບງົບປະມານ', prefix: 'BAD', chain: [{ dept: 'budget' }, { dept: 'finance' }, P_] },
+  // ─ HR and Admin ─
+  { key: 'emp', category: 'hr', name: 'ສັນຍາຈ້າງງານ', prefix: 'EMP', chain: [{ dept: 'hr' }, P_] },
+  { key: 'cert', category: 'hr', name: 'ໃບຢັ້ງຢືນການເຮັດວຽກ', prefix: 'CERT', chain: [{ dept: 'hr' }, P_] },
+  { key: 'cmd', category: 'hr', name: 'ໃບຍ້ອງຍໍ', prefix: 'CMD', chain: [H_, { dept: 'hr' }, P_] },
+  { key: 'disc', category: 'hr', name: 'ໃບຕັກເຕືອນ', prefix: 'DISC', chain: [H_, { dept: 'hr' }, P_] },
+  { key: 'res', category: 'hr', name: 'ໃບຂໍລາອອກ', prefix: 'RES', chain: [H_, { dept: 'hr' }, P_] },
+  // ─ Legal ─
+  { key: 'ctr', category: 'legal', name: 'ສັນຍາທຸລະກິດ / MOU', prefix: 'CTR', chain: [H_, { dept: 'legal' }, { dept: 'bd' }, P_] },
+  { key: 'poa', category: 'legal', name: 'ໜັງສືມອບສິດ', prefix: 'POA', chain: [{ dept: 'legal' }, P_] },
+  { key: 'lgl', category: 'legal', name: 'ເອກະສານທາງກົດໝາຍ', prefix: 'LGL', chain: [H_, { dept: 'legal' }, P_] },
+  // ─ Business Development ─
+  { key: 'quo', category: 'bd', name: 'ໃບສະເໜີລາຄາ', prefix: 'QUO', chain: [H_, { dept: 'bd' }, P_] },
+  { key: 'pro', category: 'bd', name: 'ຂໍ້ສະເໜີໂຄງການ', prefix: 'PRO', chain: [H_, { dept: 'bd' }, P_] },
+  { key: 'svc', category: 'bd', name: 'ສັນຍາບໍລິການ', prefix: 'SVC', chain: [H_, { dept: 'legal' }, { dept: 'bd' }, P_] },
+  // ─ Construction ─
+  { key: 'con', category: 'construction', name: 'ສັນຍາກໍ່ສ້າງ', prefix: 'CON', chain: [H_, { dept: 'legal' }, P_] },
+  { key: 'acc', category: 'construction', name: 'ໃບກວດຮັບວຽກ', prefix: 'ACC', chain: [H_, { dept: 'audit' }, P_] },
+  { key: 'dwg', category: 'construction', name: 'ໃບຂໍອະນຸມັດແບບກໍ່ສ້າງ', prefix: 'DWG', chain: [H_, P_] },
+  // ─ Internal Audit ─
+  { key: 'aud', category: 'audit', name: 'ບົດລາຍງານກວດສອບພາຍໃນ', prefix: 'AUD', chain: [H_, { dept: 'audit' }, P_] },
+  { key: 'ast', category: 'audit', name: 'ໃບກວດສອບຊັບສິນ', prefix: 'AST', chain: [{ dept: 'audit' }, P_] },
+  // ─ Corporate Affairs ─
+  { key: 'out', category: 'corp', name: 'ໜັງສືອອກພາຍນອກ', prefix: 'OUT', chain: [H_, { dept: 'corp' }, P_] },
+  { key: 'let', category: 'corp', name: 'ໜັງສືເຊີນ', prefix: 'LET', chain: [{ dept: 'corp' }, P_] },
+  // ─ Digital Studio ─
+  { key: 'med', category: 'studio', name: 'ໃບຂໍອະນຸມັດງານສື່', prefix: 'MED', chain: [H_, { dept: 'studio' }, P_] },
+  // ─ IT / Infrastructure ─
+  { key: 'itp', category: 'it', name: 'ໃບຂໍອະນຸມັດໂຄງການ IT', prefix: 'ITP', chain: [H_, P_] },
+  { key: 'ita', category: 'it', name: 'ໃບຂໍຈັດຊື້ອຸປະກອນ IT', prefix: 'ITA', chain: [H_, { dept: 'acct' }, { dept: 'finance' }, P_] },
+]
+
+function resolveChainStep(step, meId) {
+  const rec = DIRECTORY.find((p) => p.id === meId)
+  if (step === 'president') return DIRECTORY.find((p) => p.id === 'C')
+  if (step === 'creatorHead') return headOf(rec?.dept, meId)
+  if (step && step.person) return DIRECTORY.find((p) => p.id === step.person) // Tab 6 override — ກຳນົດຄົນຄົງທີ່
+  if (step && step.dept) return headOf(step.dept, meId)
+  return null
+}
+// ອະທິບາຍ step ແບບບໍ່ອີງໃສ່ meId — ໃຊ້ສະແດງໃນໜ້າຕັ້ງຄ່າ Tab 6 (Flow Signature Approval Setting)
+export function stepLabel(step) {
+  if (step === 'president') { const p = DIRECTORY.find((x) => x.id === 'C'); return { label: 'ຜູ້ອຳນວຍການ (ຄົງທີ່)', person: p, dynamic: false } }
+  if (step === 'creatorHead') return { label: 'ຫົວໜ້າພະແນກຜູ້ສ້າງເອກະສານ', person: null, dynamic: true }
+  if (step && step.person) { const p = DIRECTORY.find((x) => x.id === step.person); return { label: `ກຳນົດເອງ: ${p?.name || step.person}`, person: p, dynamic: false } }
+  if (step && step.dept) { const p = headOf(step.dept); return { label: `ຫົວໜ້າ ${DEPTS[step.dept] || step.dept}`, person: p, dynamic: false } }
+  return { label: '—', person: null, dynamic: false }
+}
+// "ຊະນິດ" ຂອງ step — ໃຊ້ Tab 6 ເລືອກສະຫຼັບປະເພດ step (creatorHead/president/dept/person)
+export const stepKindOf = (step) => {
+  if (step === 'president') return 'president'
+  if (step === 'creatorHead') return 'creatorHead'
+  if (step && step.person) return 'person'
+  if (step && step.dept) return 'dept'
+  return 'creatorHead'
+}
+export const STEP_KIND_LABEL = {
+  creatorHead: 'ຫົວໜ້າພະແນກຜູ້ສ້າງ (Dynamic)',
+  president: 'ຜູ້ອຳນວຍການ (ຄົງທີ່)',
+  dept: 'ຫົວໜ້າພະແນກທີ່ກຳນົດ (ຄົງທີ່)',
+  person: 'ກຳນົດຄົນສະເພາະ (ຄົງທີ່)',
+}
+// ຄືนเส้นทาง (No-Dynamic) ຂອງເอกสารย่อย — ใช้ subtypes state (Tab 6 แก้ได้) ไม่ใช่ DEFAULT_DOC_SUBTYPES ตรงๆ
+export function subtypeRoute(subtypeKey, meId, subtypes = DEFAULT_DOC_SUBTYPES) {
+  const sub = subtypes.find((s) => s.key === subtypeKey)
+  const mk = (p, role) => p && { id: p.id, name: p.name, email: p.email, hasSig: !!p.hasSig, role, locked: true }
+  if (!sub || !sub.chain.length) return { chain: [], cc: [], lockAll: false }
+  const resolved = sub.chain.map((step) => resolveChainStep(step, meId))
+  const seen = new Set([meId])
+  const uniq = resolved.filter(Boolean).filter((p) => !seen.has(p.id) && seen.add(p.id))
+  if (!uniq.length) return { chain: [], cc: [], lockAll: false }
+  const chain = uniq.map((p, i) => mk(p, i === uniq.length - 1 ? 'signer' : 'approver')).map((p, i) => ({ ...p, step: i + 1 }))
+  const ccResolved = (sub.cc || []).map((c) => resolveChainStep(c, meId)).filter(Boolean).filter((p) => !seen.has(p.id))
+  const cc = ccResolved.map((p) => ({ ...mk(p, 'cc'), step: null }))
+  return { chain, cc, lockAll: !!sub.lockAll }
+}
+// ปะเภทเอกสาร (11 ประเภทเดิม) ที่หมวดของเอกสารย่อยนี้ควร map เป็น — ใช้คง E11/E15/filter เดิมไว้
+export const legacyTypeOfCategory = (category) => CATEGORY_TO_LEGACY_TYPE[category] || 'ເອກະສານທົ່ວໄປ'
+// rank ที่เข้า Tab 6 (Flow Signature Approval Setting) ได้ — VP(deputy) + Super Admin(director) (E8)
+export const canManageFlowSettings = (meId) => {
+  const rec = DIRECTORY.find((p) => p.id === meId)
+  return rec?.rank === 'deputy' || rec?.rank === 'director'
 }
 // ── ໂຄງສ້າງ flow: ພະນັກງານສ້າງ → ຫົວໜ້າພະແນກ → ຜູ້ອຳນວຍການ(C) approve ສຸດທ້າຍ → C ເຊັນຫຼາຍສຸດ ──
 export function initialDocs() {
@@ -394,8 +529,12 @@ export function initialDocs() {
 
 // ── helpers ──
 export const isSignedDoc = (d) => d.status === 'done'
-export const mySigner = (d, me) => d.signers.find((s) => s.id === me)
-// ໜ້ານີ້ເປັນຮอบของ me ບໍ (step ปัจจุบันที่ยังไม่เซ็น + เป็นของ me)
+// E3/E12: ถ้า signer ใบนี้ ຖືກ "ມອບໝາຍ" ໃຫ້ຄົນອື່ນເຊັນ/ອະນຸມັດແທນ → actingId = ຄົນທີ່ຕ້ອງ act ຈິງ (ບໍ່ແມ່ນ owner ເດີມ)
+export const actingId = (s) => s.assignedTo || s.id
+// ใช้ตอนต้องนับ "เกี่ยวข้องด้วยไหม" แบบกว้าง (Overview/History/CC-check) — นับทั้งเจ้าของที่นั่งเดิม + ผู้รับมอบ
+export const isInvolved = (s, me) => s.id === me || actingId(s) === me
+export const mySigner = (d, me) => d.signers.find((s) => actingId(s) === me)
+// ໜ້ານີ້ເປັນຮอบของ me ບໍ (step ปัจจุบันที่ยังไม่เซ็น + เป็นของ me — รวมที่ถูกมอบหมายมาด้วย)
 export function isMyTurn(d, me) {
   if (d.status !== 'progress') return false
   const s = mySigner(d, me)

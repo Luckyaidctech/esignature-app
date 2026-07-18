@@ -5,7 +5,7 @@ import {
 } from './shared.jsx'
 import FilePreviewModal from './FilePreviewModal.jsx'
 import AiSummary from './AiSummary.jsx'
-import { DOC_TYPES, DOC_TYPE_INFO, docTypeRoute, docPrefixOf, docTypeStyle } from '../home/data.js'
+import { DOC_CATEGORIES, DEFAULT_DOC_SUBTYPES, subtypeRoute, legacyTypeOfCategory } from '../home/data.js'
 
 // ─────────────── Directory picker (ໂຄງສ້າງອົງກອນ + sticky headers) ───────────────
 function DirectoryPicker({ open, onClose, signers, onAdd, me }) {
@@ -82,25 +82,33 @@ function DirectoryPicker({ open, onClose, signers, onAdd, me }) {
   )
 }
 
-// ─────────────── ແຜ່ນເລືອກປະເພດເອກະສານ (Q5) — ປະເພດກຳນົດເສັ້ນທາງອັດຕະໂນມັດ ───────────────
-function DocTypeSheet({ open, value, onPick, onClose }) {
+// ─────────────── ແຜ່ນເລືອກປະເພດເອກະສານ (E7/E8/E10) — ໝວດ → ເອກະສານຍ່ອຍ (2 ຊັ້ນ) ───────────────
+function DocTypeSheet({ open, value, subtypes, onPick, onClose }) {
   if (!open) return null
   return (
     <div className="fsheet-overlay" onClick={onClose}>
-      <div className="fsheet" onClick={(e) => e.stopPropagation()}>
-        <p className="fsheet-title">ປະເພດເອກະສານ — ເສັ້ນທາງອະນຸມັດຖືກກຳນົດອັດຕະໂນມັດ</p>
-        {DOC_TYPES.map((t) => {
-          const info = DOC_TYPE_INFO[t] || {}
-          return (
-            <button key={t} className={`dtype-opt ${value === t ? 'on' : ''}`} onClick={() => onPick(t)}>
-              <div className="dtype-info">
-                <b>{t}{info.live && t !== 'ເອກະສານທົ່ວໄປ' && <em className="dtype-auto"><Icon.lock /> ເສັ້ນທາງບັງຄັບ</em>}</b>
-                <span>{info.d}</span>
+      <div className="fsheet subtype-sheet" onClick={(e) => e.stopPropagation()}>
+        <p className="fsheet-title">ປະເພດເອກະສານ — ເລືອກເອກະສານຍ່ອຍ</p>
+        <div className="modal-list">
+          {Object.entries(DOC_CATEGORIES).map(([catKey, cat]) => {
+            const subs = subtypes.filter((s) => s.category === catKey)
+            if (!subs.length) return null
+            return (
+              <div className="dir-sec" key={catKey}>
+                <p className="dir-sec-head" style={{ color: cat.main }}>{cat.label}<span>{subs.length}</span></p>
+                {subs.map((s) => (
+                  <button key={s.key} className={`dtype-opt ${value === s.key ? 'on' : ''}`} onClick={() => onPick(s.key)}>
+                    <div className="dtype-info">
+                      <b>{s.name}{s.lockAll && <em className="dtype-auto"><Icon.lock /> ລັບ</em>}</b>
+                      <span>{s.prefix} · {s.chain.length > 0 ? `ຂັ້ນບັງຄັບ ${s.chain.length} ຂັ້ນ` : 'ບໍ່ມີເສັ້ນທາງບັງຄັບ'}</span>
+                    </div>
+                    {value === s.key && <Icon.check />}
+                  </button>
+                ))}
               </div>
-              {value === t && <Icon.check />}
-            </button>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )
@@ -117,10 +125,12 @@ function RoleSeg({ role, onChange }) {
   )
 }
 
-export default function Step1Input({ store, me = 'A', onNext, onBack }) {
+export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBack }) {
   const {
-    title, setTitle, docType, setDocType, pdfs, setPdfs, attachments, setAttachments, signers, setSigners,
+    title, setTitle, docType, setDocType, docSubtype, setDocSubtype, pdfs, setPdfs, attachments, setAttachments, signers, setSigners,
   } = store
+  // ໃຊ້ subtypes ຈາກ App (Tab 6 ອາດແກ້ chain ໄວ້) — ບໍ່ມີ prop ສົ່ງມາ → fallback default
+  const subtypes = docSubtypes || DEFAULT_DOC_SUBTYPES
 
   const [titleCleaned, setTitleCleaned] = useState(false)
   const [loading, setLoading] = useState({ pdf: false, attach: false })
@@ -129,10 +139,16 @@ export default function Step1Input({ store, me = 'A', onNext, onBack }) {
   const [typeOpen, setTypeOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
   const [dragId, setDragId] = useState(null)
+  // E7/E10: Dynamic = ເລືອກຜູ້ລົງນາມເອງ · No-Dynamic (default) = ໃຊ້ເສັ້ນທາງມາດຕະຖານຂອງເອກະສານຍ່ອຍ
+  const [dynamicMode, setDynamicMode] = useState(false)
 
-  // Q5: ປະເພດ → ເສັ້ນທາງບັງຄັບ (lockAll = ເອກະສານລັບ ຫ້າມເພີ່ມໃຜ)
-  const route = docTypeRoute(docType, me)
+  const currentSub = subtypes.find((s) => s.key === docSubtype) || subtypes[0]
+  const currentCat = DOC_CATEGORIES[currentSub.category] || {}
+  // E7/E8/E10: ໝວດ+ຍ່ອຍ → ເສັ້ນທາງບັງຄັບ (Dynamic mode = ບໍ່ລ໋ອກ, ເລືອກເອງໝົດ)
+  const route = dynamicMode ? { chain: [], cc: [], lockAll: false } : subtypeRoute(docSubtype, me, subtypes)
   const lockAll = route.lockAll
+  // No-Dynamic ล็อกการเพิ่มคนเองก็ต่อเมื่อจริงๆ มีเส้นทางบังคับ — ประเภทที่ chain ว่าง (ทั่วไป/บันทึก/เชิญประชุม) ไม่มีอะไรให้ล็อก เพิ่มเองได้เสมอ
+  const chainLocked = !lockAll && !dynamicMode && route.chain.length > 0
 
   const pdfInput = useRef(null)
   const attachInput = useRef(null)
@@ -176,10 +192,8 @@ export default function Step1Input({ store, me = 'A', onNext, onBack }) {
     return [...sig, ...cc]
   }
 
-  // ── ເລືອກປະເພດ → ວາງເສັ້ນທາງບັງຄັບໃໝ່ (ຂັ້ນ lock ຢູ່ໜ້າ · ຄົນທີ່ຜູ້ໃຊ້ເພີ່ມເອງ ຕໍ່ທ້າຍ) ──
-  const applyDocType = (t) => {
-    setDocType(t)
-    const r = docTypeRoute(t, me)
+  // ── ວາງເສັ້ນທາງບັງຄັບໃໝ່ (ຂັ້ນ lock ຢູ່ໜ້າ · ຄົນທີ່ຜູ້ໃຊ້ເພີ່ມເອງ ຕໍ່ທ້າຍ) ──
+  const applyLockedChain = (r) => {
     setSigners((prev) => {
       const lockedIds = new Set([...r.chain, ...r.cc].map((p) => p.id))
       // ເອກະສານລັບ: ລ້າງທຸກຄົນທີ່ເພີ່ມເອງ · ປະເພດອື່ນ: ຮັກສາໄວ້ (ຕັດຄົນທີ່ຊ້ຳກັບຂັ້ນບັງຄັບ)
@@ -188,8 +202,26 @@ export default function Step1Input({ store, me = 'A', onNext, onBack }) {
       const rest = userAdded.map((s) => (isOrdered(s.role) ? { ...s, step: (s.step || 1) + k } : s))
       return rebuild([...r.chain, ...rest, ...r.cc])
     })
+  }
+
+  // ── ເລືອກເອກະສານຍ່ອຍ → ຕັ້ງ legacy docType (backward-compat E11/E15/filter) + ໃສ່ເສັ້ນທາງ (ຖ້າບໍ່ແມ່ນ Dynamic) ──
+  const applySubtype = (key) => {
+    setDocSubtype(key)
+    const sub = subtypes.find((s) => s.key === key)
+    setDocType(legacyTypeOfCategory(sub?.category))
+    // ເອກະສານລັບ (lockAll): ບັງຄັບ No-Dynamic ສະເໝີ — ຫ້າມຜູ້ໃຊ້ເລືອກຄົນເອງ
+    if (sub?.lockAll) setDynamicMode(false)
+    if (dynamicMode && !sub?.lockAll) setSigners((prev) => rebuild(prev.filter((s) => !s.locked)))
+    else applyLockedChain(subtypeRoute(key, me, subtypes))
     setShowErrors(false)
     setTypeOpen(false)
+  }
+
+  // ── ສະຫຼັບ Dynamic ↔ No-Dynamic — ລ໋ອກ/ປົດລ໋ອກເສັ້ນທາງຂອງເອກະສານຍ່ອຍປັດຈຸບັນ ──
+  const toggleDynamic = (dyn) => {
+    setDynamicMode(dyn)
+    if (dyn) setSigners((prev) => rebuild(prev.filter((s) => !s.locked)))
+    else applyLockedChain(subtypeRoute(docSubtype, me, subtypes))
   }
 
   const addFromDirectory = (person, role) => {
@@ -265,29 +297,31 @@ export default function Step1Input({ store, me = 'A', onNext, onBack }) {
       <div className="scroll">
         <Stepper current={1} />
 
-        {/* ── ປະເພດເອກະສານ (Q5) — ກຳນົດເສັ້ນທາງອະນຸມັດອັດຕະໂນມັດ ── */}
+        {/* ── ປະເພດເອກະສານ (E7/E8/E10) — ໝວດ→ຍ່ອຍ ກຳນົດເສັ້ນທາງອະນຸມັດອັດຕະໂນມັດ ── */}
         <div className="card">
-          <SectionHead icon={<Icon.layers />} title="ປະເພດເອກະສານ" sub="ເສັ້ນທາງອະນຸມັດ ຖືກກຳນົດຕາມປະເພດ" />
+          <SectionHead icon={<Icon.layers />} title="ປະເພດເອກະສານ" sub="ເລືອກເອກະສານຍ່ອຍ — ເສັ້ນທາງອະນຸມັດຖືກກຳນົດຕາມປະເພດ" />
           <button className="dtype-btn" onClick={() => setTypeOpen(true)}>
             <div className="dtype-btn-info">
-              <b>{docType}</b>
-              <span>{(DOC_TYPE_INFO[docType] || {}).d}</span>
+              <b>{currentSub.name}</b>
+              <span>{currentCat.label}</span>
             </div>
             <Icon.chevron />
           </button>
           {/* ພรีวิว docNo (E15) — ตัวเลขจริงกำหนดตอนกดส่ง */}
-          {(() => {
-            const sty = docTypeStyle({ docType })
-            return (
-              <div className="docno-box" style={{ background: sty.soft }}>
-                <span className="docno-box-ic" style={{ background: sty.main, color: '#fff' }}>{Icon[sty.icon]()}</span>
-                <div className="docno-box-txt">
-                  <span>ຈະໄດ້ເລກທີເອກະສານ</span>
-                  <b style={{ color: sty.main }}>{docPrefixOf(docType)}-{new Date().getFullYear()}/xxx</b>
-                </div>
-              </div>
-            )
-          })()}
+          <div className="docno-box" style={{ background: currentCat.soft }}>
+            <span className="docno-box-ic" style={{ background: currentCat.main, color: '#fff' }}>{Icon[currentCat.icon] ? Icon[currentCat.icon]() : <Icon.doc />}</span>
+            <div className="docno-box-txt">
+              <span>ຈະໄດ້ເລກທີເອກະສານ</span>
+              <b style={{ color: currentCat.main }}>{currentSub.prefix}-{new Date().getFullYear()}/xxx</b>
+            </div>
+          </div>
+          {/* Dynamic (ເລືອກຄົນເອງ) ↔ No-Dynamic (ໃຊ້ເສັ້ນທາງມາດຕະຖານ) — ເອກະສານລັບ ບັງຄັບ No-Dynamic ສະເໝີ */}
+          {!currentSub.lockAll && (
+            <div className="seg" style={{ marginTop: 10 }}>
+              <button className={`seg-btn ${!dynamicMode ? 'on approver' : ''}`} onClick={() => toggleDynamic(false)}>ໃຊ້ເສັ້ນທາງມາດຕະຖານ</button>
+              <button className={`seg-btn ${dynamicMode ? 'on signer' : ''}`} onClick={() => toggleDynamic(true)}>ເລືອກຜູ້ລົງນາມເອງ</button>
+            </div>
+          )}
           {route.chain.length > 0 && (
             <p className="dtype-note"><Icon.lock /> ຂັ້ນບັງຄັບ {route.chain.length} ຂັ້ນ ຖືກໃສ່ໃຫ້ອັດຕະໂນມັດ — ລຶບ/ສະຫຼັບບໍ່ໄດ້{lockAll ? ' · ຫ້າມເພີ່ມຜູ້ອື່ນ ແລະ CC' : ''}</p>
           )}
@@ -334,10 +368,14 @@ export default function Step1Input({ store, me = 'A', onNext, onBack }) {
 
         {/* ── ຜູ້ລົງນາມ + CC ── */}
         <div className={`card ${showErrors && !valid.signer ? 'card-invalid' : ''}`}>
-          <SectionHead icon={<Icon.addUser />} title="ຜູ້ລົງນາມ & ຮັບສຳເນົາ" sub={lockAll ? 'ເອກະສານລັບ — ຜູ້ອຳນວຍການເຊັນຄົນດຽວ' : 'ເລືອກຄົນຈາກລາຍຊື່'} />
-          {lockAll
-            ? <p className="dtype-lockmsg"><Icon.lock /> ເອກະສານລັບ ສົ່ງກົງຫາຜູ້ອຳນວຍການເທົ່ານັ້ນ — ເພີ່ມຜູ້ເຊັນ/CC ບໍ່ໄດ້ ເນື້ອໃນເຫັນສະເພາະຜູ້ສ້າງ ແລະ ຜູ້ເຊັນ</p>
-            : <button className="add-btn" onClick={() => setPickerOpen(true)}><Icon.book /> ເພີ່ມຈາກລາຍຊື່</button>}
+          <SectionHead icon={<Icon.addUser />} title="ຜູ້ລົງນາມ & ຮັບສຳເນົາ" sub={lockAll ? 'ເອກະສານລັບ — ຜູ້ອຳນວຍການເຊັນຄົນດຽວ' : chainLocked ? 'ໃຊ້ເສັ້ນທາງມາດຕະຖານ — ລ໋ອກໄວ້' : 'ເລືອກຄົນຈາກລາຍຊື່'} />
+          {lockAll ? (
+            <p className="dtype-lockmsg"><Icon.lock /> ເອກະສານລັບ ສົ່ງກົງຫາຜູ້ອຳນວຍການເທົ່ານັ້ນ — ເພີ່ມຜູ້ເຊັນ/CC ບໍ່ໄດ້ ເນື້ອໃນເຫັນສະເພາະຜູ້ສ້າງ ແລະ ຜູ້ເຊັນ</p>
+          ) : chainLocked ? (
+            <p className="dtype-lockmsg"><Icon.lock /> ໃຊ້ເສັ້ນທາງມາດຕະຖານ — ຜູ້ລົງນາມ/ອະນຸມັດຖືກລ໋ອກໄວ້ຕາມປະເພດເອກະສານ ເພີ່ມຄົນອື່ນເອງບໍ່ໄດ້ (ສະຫຼັບເປັນ "ເລືອກຜູ້ລົງນາມເອງ" ຖ້າຕ້ອງການເພີ່ມ)</p>
+          ) : (
+            <button className="add-btn" onClick={() => setPickerOpen(true)}><Icon.book /> ເພີ່ມຈາກລາຍຊື່</button>
+          )}
 
           {signatories.length > 0 && (
             <>
@@ -421,8 +459,8 @@ export default function Step1Input({ store, me = 'A', onNext, onBack }) {
         </button>
       </div>
 
-      <DirectoryPicker open={pickerOpen && !lockAll} onClose={() => setPickerOpen(false)} signers={signers} onAdd={addFromDirectory} me={me} />
-      <DocTypeSheet open={typeOpen} value={docType} onPick={applyDocType} onClose={() => setTypeOpen(false)} />
+      <DirectoryPicker open={pickerOpen && !lockAll && !chainLocked} onClose={() => setPickerOpen(false)} signers={signers} onAdd={addFromDirectory} me={me} />
+      <DocTypeSheet open={typeOpen} value={docSubtype} subtypes={subtypes} onPick={applySubtype} onClose={() => setTypeOpen(false)} />
       <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
     </div>
   )

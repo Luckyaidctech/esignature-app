@@ -788,6 +788,11 @@ body {
 .pick-btn.cc { color: #64748b; }
 .pick-btn.cc:hover { background: #eef1f6; border-color: #94a3b8; }
 .dir-actions .pick-btn { padding: 6px 8px; font-size: 12px; }
+.chain-row .dir-info b { white-space: normal; }
+.chain-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 108px; }
+.chain-actions .pick-btn { padding: 6px 7px; }
+.chain-move { display: flex; gap: 4px; }
+.chain-move .icon-mini { width: 26px; height: 26px; }
 
 /* approver role */
 .role-tag.approver { background: #eef1f6; color: #64748b; font-size: 10px; padding: 1px 7px; }
@@ -995,6 +1000,7 @@ body {
 .dd-tl-time { font-size: 11.5px; color: var(--muted); }
 .dd-tl-time.now { color: #e07b1f; font-weight: 700; }
 .dd-tl-time.rej { color: var(--danger); font-weight: 600; }
+.dd-tl-time.assign { color: var(--blue); font-weight: 600; }
 .dd-tl-row.me .dd-tl-name b { color: var(--blue); }
 .role-tag.signer { background: var(--blue-soft); color: var(--blue); }
 
@@ -1059,6 +1065,8 @@ button.ac-card:active { transform: scale(.99); }
 .set-sig-box { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: grid; place-items: center; min-height: 120px; }
 .set-sig-box img { max-width: 80%; max-height: 120px; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.set-row-link { width: 100%; background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
+.set-row-link svg:last-child { width: 18px; height: 18px; color: var(--muted); flex-shrink: 0; }
 .set-row-info { display: flex; flex-direction: column; gap: 3px; }
 .set-row-info b { display: flex; align-items: center; gap: 7px; font-size: 15px; }
 .set-row-info b svg { width: 18px; height: 18px; color: var(--blue); }

@@ -3,7 +3,7 @@ import { Icon, Header } from './shared.jsx'
 import SignaturePad from './SignaturePad.jsx'
 
 // ໜ້າ ຕັ້ງຄ່າ: ບັນທຶກລາຍເຊັນ + ເປີດ Face ID
-export default function Settings({ mySig, bio, onSaveSig, onDeleteSig, onToggleBio, onBack }) {
+export default function Settings({ mySig, bio, onSaveSig, onDeleteSig, onToggleBio, canManageFlow, onOpenFlowSettings, onBack }) {
   const [drawn, setDrawn] = useState(null)
   const [redraw, setRedraw] = useState(!mySig)
 
@@ -42,6 +42,17 @@ export default function Settings({ mySig, bio, onSaveSig, onDeleteSig, onToggleB
             <button className={`toggle ${bio ? 'on' : ''}`} onClick={onToggleBio}><span className="toggle-dot" /></button>
           </div>
         </div>
+
+        {/* Tab 6 (E7/E8/E10) — ສາຍອະນຸມັດ, ເຫັນສະເພາະ VP/Super Admin */}
+        {canManageFlow && (
+          <div className="card">
+            <p className="dd-section"><Icon.layers /> ບໍລິຫານລະບົບ</p>
+            <button className="set-row set-row-link" onClick={onOpenFlowSettings}>
+              <div className="set-row-info"><b><Icon.shield /> ຕັ້ງຄ່າສາຍອະນຸມັດ</b><span>ກຳນົດ/ແກ້ໄຂຜູ້ອະນຸມັດແຕ່ລະຂັ້ນ ຕໍ່ປະເພດເອກະສານຍ່ອຍ</span></div>
+              <Icon.chevron />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { Icon, Header, SectionHead, initials, ResultPopup, ReasonModal, DIRECTORY, directorySections } from '../flow/shared.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
-import { nameOf, colorOf, progress, isMyTurn, avatarOf, rolesLabel, docTypeOf, docTypeStyle } from './data.js'
+import { nameOf, colorOf, progress, isMyTurn, avatarOf, rolesLabel, docTypeOf, docTypeStyle, actingId } from './data.js'
 
 // ໄຟລ໌ຕົວຢ່າງ (mock) — ຄລິກໄຟລ໌ → ເປີດເບິ່ງ PDF ຈິງ (BASE_URL → ໃຊ້ໄດ້ທັງ dev ແລະ GitHub Pages)
 const SAMPLE_PDFS = ['sample.pdf', 'super-work-agreement.pdf', 'super-work-invitation.pdf'].map((f) => `${import.meta.env.BASE_URL}${f}`)
@@ -28,8 +28,10 @@ const STATUS = {
   rejected: { label: 'ປະຕິເສດ', cls: 'rej' },
 }
 
-export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onApprove, onComment, onCancel, onRemind, onEditComment, onDeleteComment }) {
+export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onApprove, onComment, onCancel, onRemind, onEditComment, onDeleteComment, onAssign, onRevokeAssign }) {
   const [rejectOpen, setRejectOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false) // E3/E12: มอบหมายให้คนอื่นเซ็น/อนุมัติแทน
+  const [assignQ, setAssignQ] = useState('')
   const [approveOpen, setApproveOpen] = useState(false) // ຢືນຢັນອະນຸມັດ (role approver — ບໍ່ມີຊ່ອງເຊັນ)
   const [approvePopup, setApprovePopup] = useState(false)
   const [rejPopup, setRejPopup] = useState(false)
@@ -85,8 +87,13 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
   const { done, total, pct } = progress(d)
   const dsty = docTypeStyle(d) // ສີ+ໄອຄอนຕາມປະເພດເອກະສານ (E11)
   const iCreated = d.creatorId === me
-  const mySig = d.signers.find((s) => s.id === me)
+  const mySig = d.signers.find((s) => actingId(s) === me) // E3/E12: ตำแหน่งที่ me ต้อง act จริง (รวมที่รับมอบหมายมา)
+  const myOwnSeat = d.signers.find((s) => s.id === me) // ที่นั่งที่ me เป็นเจ้าของเดิม (ใช้ตัดสิน มอบหมาย/ดึงกลับ)
   const myTurn = isMyTurn(d, me)
+  // E3/E12: เอกสารลับ ห้ามมอบหมายให้คนนอกสาย (ใช้กฎเดียวกับ E14 @tag) · มอบได้เฉพาะที่นั่งของตัวเอง (กันมอบซ้อน/delegate-of-delegate)
+  const isConfidential = docTypeOf(d) === 'ເອກະສານລັບ'
+  const canAssign = myTurn && mySig?.id === me && !isConfidential
+  const canRevoke = myOwnSeat?.assignedTo && myOwnSeat.status !== 'signed' && myOwnSeat.status !== 'rejected'
   const steps = [...new Set(d.signers.map((s) => s.step))].sort((a, b) => a - b)
   const minPending = Math.min(...d.signers.filter((s) => s.status !== 'signed' && s.status !== 'rejected').map((s) => s.step), Infinity)
   const orderType = steps.length === 1 ? 'ພ້ອມກັນ' : steps.length === d.signers.length ? 'ຕາມລຳດັບ' : 'ປະສົມ'
@@ -111,7 +118,6 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
 
   // ── comment + @mention (E14) — tag ได้ทุกคนในบริษัท ยกเว้นเอกสารลับ (จำกัดเฉพาะคนในสายเดิม กันความลับรั่ว) ──
   // ຈັດກຸ່ມຕາມພะแนก (directorySections ດฉบับดียวกับ DirectoryPicker Step1) — ตัดหมวด "ตัวเอง" ออก (แท็กตัวเองไม่มีประโยชน์)
-  const isConfidential = docTypeOf(d) === 'ເອກະສານລັບ'
   const mentionSections = mentionQ === null ? [] : isConfidential
     ? [{ key: 'chain', label: 'ຄົນໃນສາຍ', people: d.signers.map((s) => ({ id: s.id, name: nameOf(s.id) })).filter((p) => p.name.toLowerCase().includes(mentionQ.toLowerCase())) }].filter((sec) => sec.people.length)
     : directorySections(me, mentionQ, '').filter((sec) => sec.key !== 'me')
@@ -311,7 +317,7 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
               const active = d.status === 'progress' && s.step === minPending && s.status !== 'signed' && s.status !== 'rejected'
               const isApprover = s.role === 'approver'
               return (
-                <div className={`dd-tl-row ${s.status === 'signed' ? 'ok' : ''} ${s.status === 'rejected' ? 'rej' : ''} ${active ? 'now' : ''} ${s.id === me ? 'me' : ''}`} key={s.id}>
+                <div className={`dd-tl-row ${s.status === 'signed' ? 'ok' : ''} ${s.status === 'rejected' ? 'rej' : ''} ${active ? 'now' : ''} ${actingId(s) === me ? 'me' : ''}`} key={s.id}>
                   {/* ໂຊ avatar ຂອງຄົນນັ້ນສະເໝີ + ຕິກຖືກ ຊ້ອນມຸມ ເມື່ອເຊັນແລ້ວ (ບໍ່ແທນທີ່ avatar) */}
                   <span className="dd-tl-av" style={avBg(s.id)}>
                     {!avatarOf(s.id) && initials(nameOf(s.id))}
@@ -323,8 +329,10 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
                       <b>{nameOf(s.id)}</b>
                       <span className={`role-tag ${isApprover ? 'approver' : 'signer'}`}>{isApprover ? 'ອະນຸມັດ' : 'ລົງນາມ'}</span>
                     </div>
+                    {/* E3/E12: ระบุการมอบหมาย ให้เห็นทั้งฝั่งเจ้าของที่นั่งและผู้รับมอบ */}
+                    {s.assignedTo && s.status !== 'signed' && <span className="dd-tl-time assign">→ ມອບໝາຍໃຫ້ {nameOf(s.assignedTo)} {isApprover ? 'ອະນຸມັດ' : 'ເຊັນ'}ແທນ</span>}
                     {/* E2/E13: ລະບຸວິທີເຊັນ — ຕົ້ນສະບັບ (ພິມ→ເຊັນມື→ສະແກນ) ຕ້ອງແຍກອອກຈາກເຊັນ digital ໃຫ້ກວດສອບໄດ້ */}
-                    {s.status === 'signed' && <span className="dd-tl-time">ເຊັນແລ້ວ{s.sigType === 'original' ? ' (ຕົ້ນສະບັບ)' : ''} · {s.time}</span>}
+                    {s.status === 'signed' && <span className="dd-tl-time">{s.assignedTo ? `ເຊັນແທນໂດຍ ${nameOf(s.assignedTo)} · ` : ''}ເຊັນແລ້ວ{s.sigType === 'original' ? ' (ຕົ້ນສະບັບ)' : ''} · {s.time}</span>}
                     {s.status === 'rejected' && <span className="dd-tl-time rej">ປະຕິເສດ{s.reason ? ` · ${s.reason}` : ''}</span>}
                     {active && <span className="dd-tl-time now">ຮອບນີ້ · ກຳລັງລໍຖ້າ</span>}
                   </div>
@@ -332,6 +340,17 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
               )
             })}
           </div>
+          {/* E3/E12: มอบหมายให้คนอื่นเซ็น/อนุมัติแทน — เฉพาะที่นั่งของตัวเอง, ไม่ใช่เอกสารลับ */}
+          {canAssign && (
+            <button className="dd-cmt-reply" style={{ marginTop: 10 }} onClick={() => setAssignOpen(true)}>
+              <Icon.swap /> ມອບໝາຍໃຫ້ຄົນອື່ນ{mySig.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'}ແທນ
+            </button>
+          )}
+          {canRevoke && (
+            <button className="dd-cmt-reply del" style={{ marginTop: 6 }} onClick={() => onRevokeAssign(d.id, myOwnSeat.id)}>
+              <Icon.x /> ດຶງການມອບໝາຍຄືນຈາກ {nameOf(myOwnSeat.assignedTo)}
+            </button>
+          )}
         </div>
 
         {/* CC — ຮັບສຳເນົາ */}
@@ -503,6 +522,31 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
       )}
 
       <FilePreviewModal file={preview} onClose={() => setPreview(null)} />
+
+      {/* E3/E12: เลือกคนรับมอบหมาย — จัดกลุ่มตามแผนก (directorySections ตัวเดียวกับ @mention/DirectoryPicker) */}
+      {assignOpen && (
+        <div className="modal-overlay" onClick={() => { setAssignOpen(false); setAssignQ('') }}>
+          <div className="modal-sheet tall" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head"><b><Icon.swap /> ມອບໝາຍໃຫ້ຄົນອື່ນ{mySig?.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'}ແທນ</b>
+              <button className="icon-mini" onClick={() => { setAssignOpen(false); setAssignQ('') }}><Icon.x /></button></div>
+            <div style={{ padding: '0 14px 14px' }}>
+              <div className="home-search"><Icon.search /><input value={assignQ} onChange={(e) => setAssignQ(e.target.value)} placeholder="ຄົ້ນຫາຊື່..." autoFocus /></div>
+            </div>
+            <div style={{ padding: '0 8px 16px', maxHeight: '55vh', overflowY: 'auto' }}>
+              {directorySections(me, assignQ, '').filter((sec) => sec.key !== 'me').map((sec) => (
+                <div key={sec.key}>
+                  <p className="mention-sec-head">{sec.label}</p>
+                  {sec.people.map((p) => (
+                    <button key={p.id} className="mention-opt" onClick={() => { onAssign(d.id, myOwnSeat.id, p.id); setAssignOpen(false); setAssignQ(''); act(`ມອບໝາຍໃຫ້ ${p.name} ແລ້ວ`) }}>
+                      <span className="mention-av" style={avBg(p.id)}>{!avatarOf(p.id) && initials(p.name)}</span>{p.name}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -5,19 +5,20 @@ import Step1Input from './Step1Input.jsx'
 import Step2Place from './Step2Place.jsx'
 import Step3Send from './Step3Send.jsx'
 
-export default function SignatureFlow({ onExit, onCreate, me = 'A' }) {
+export default function SignatureFlow({ onExit, onCreate, me = 'A', docSubtypes }) {
   const [screen, setScreen] = useState(1)
   const [done, setDone] = useState(false)
 
   const [title, setTitle] = useState('')
-  const [docType, setDocType] = useState('ເອກະສານທົ່ວໄປ') // Q5: ປະເພດກຳນົດເສັ້ນທາງ
+  const [docType, setDocType] = useState('ເອກະສານທົ່ວໄປ') // Q5: ປະເພດກຳນົດເສັ້ນທາງ (legacy — ໃຊ້ຮ່ວມ E11/E15/filter)
+  const [docSubtype, setDocSubtype] = useState('gen') // E7/E8/E10: ເອກະສານຍ່ອຍ (2-layer catalog)
   const [pdfs, setPdfs] = useState([])
   const [attachments, setAttachments] = useState([])
   const [signers, setSigners] = useState([])   // {id,name,email,role:'signer'|'cc',step,locked?}
   const [placements, setPlacements] = useState([])
 
   const store = {
-    title, setTitle, docType, setDocType, pdfs, setPdfs, attachments, setAttachments,
+    title, setTitle, docType, setDocType, docSubtype, setDocSubtype, pdfs, setPdfs, attachments, setAttachments,
     signers, setSigners, placements, setPlacements,
   }
 
@@ -28,7 +29,8 @@ export default function SignatureFlow({ onExit, onCreate, me = 'A' }) {
     onCreate && onCreate({
       id: uid(),
       title: title.trim() || 'ເອກະສານໃໝ່',
-      docType, // ປະເພດເອກະສານ (Q5) → ໂຊເທິງການ໌ດ/detail + filter ໄດ້
+      docType, // ປະເພດເອກະສານ (Q5, legacy) → ໂຊເທິງການ໌ດ/detail + filter ໄດ້
+      docSubtype, // ເອກະສານຍ່ອຍ (E7/E8/E10) → docNo prefix ລະອຽດ + Flow Setting
       creatorId: me,
       // realtime: ວັນທີສ້າງ = ມື້ນີ້ຈິງ (Lucky ສັ່ງ 17/07) · ts = ວັນຂອງເດືອນ ໃຊ້ filter ໄລຍະເວລາ
       date: nowDate(),
@@ -43,7 +45,7 @@ export default function SignatureFlow({ onExit, onCreate, me = 'A' }) {
     setDone(true)
   }
   const resetAll = () => {
-    setScreen(1); setDone(false); setTitle(''); setDocType('ເອກະສານທົ່ວໄປ'); setPdfs([]); setAttachments([])
+    setScreen(1); setDone(false); setTitle(''); setDocType('ເອກະສານທົ່ວໄປ'); setDocSubtype('gen'); setPdfs([]); setAttachments([])
     setSigners([]); setPlacements([])
   }
 
@@ -69,7 +71,7 @@ export default function SignatureFlow({ onExit, onCreate, me = 'A' }) {
     )
   }
 
-  if (screen === 1) return <Step1Input store={store} me={me} onNext={() => goTo(2)} onBack={onExit} />
+  if (screen === 1) return <Step1Input store={store} me={me} docSubtypes={docSubtypes} onNext={() => goTo(2)} onBack={onExit} />
   if (screen === 2) return <Step2Place store={store} onBack={() => goTo(1)} onNext={() => goTo(3)} />
   return <Step3Send store={store} onBack={() => goTo(2)} onSubmit={submit} />
 }

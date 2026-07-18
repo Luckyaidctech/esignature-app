@@ -3,7 +3,7 @@ import { Icon, initials, Header, ResultPopup, ReasonModal, ScreenPortal } from '
 import RequestScreen, { REQ_KINDS, KIND_META, ReqCard, RequestDetailBody } from './RequestScreen.jsx'
 import KnowledgeScreen, { KnowledgeDetailBody } from './KnowledgeScreen.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
-import { USERS, nameOf, colorOf, progress, isMyTurn, avatarOf, rolesLabel, sortPendingFirst, currentApprover, DOC_TYPES, docTypeOf, docTypeStyle, DOC_TYPE_STYLE, visibleDocs } from './data.js'
+import { USERS, nameOf, colorOf, progress, isMyTurn, actingId, isInvolved, avatarOf, rolesLabel, sortPendingFirst, currentApprover, DOC_TYPES, docTypeOf, docTypeStyle, DOC_TYPE_STYLE, visibleDocs } from './data.js'
 import PointsRequest from './PointsRequest.jsx'
 import CommentBox from './CommentBox.jsx'
 
@@ -46,7 +46,7 @@ function DocCard({ d, me, onOpen }) {
         <span className="doc-chip type" style={{ background: '#fff', color: sty.main }}>{docTypeOf(d)}</span>
         <span className="doc-chip"><Icon.doc /> {d.files.length} ໄຟລ໌</span>
         {d.attachments.length > 0 && <span className="doc-chip alt"><Icon.layers /> ໄຟລ໌ແນບ {d.attachments.length}</span>}
-        {d.creatorId !== me && !d.signers.some((s) => s.id === me) && (d.cc || []).includes(me) && <span className="doc-chip cc"><Icon.users /> CC</span>}
+        {d.creatorId !== me && !d.signers.some((s) => isInvolved(s, me)) && (d.cc || []).includes(me) && <span className="doc-chip cc"><Icon.users /> CC</span>}
       </div>
       <p className="doc-prog-label">ດຳເນີນການແລ້ວ {done}/{total}</p>
       <div className="doc-prog"><span className="doc-prog-fill" style={{ width: `${pct}%` }} /></div>
@@ -62,7 +62,7 @@ function DocCard({ d, me, onOpen }) {
         const rj = d.signers.find((s) => s.status === 'rejected')
         return <div className="doc-you rej"><span className="doc-you-txt"><b>{nameOf(rj.id)}</b>: {rj.reason || 'ໄດ້ປະຕິເສດການລົງນາມ'}</span></div>
       })()}
-      {d.status === 'progress' && !rejected && d.signers.some((s) => s.id === me && s.status === 'signed') &&
+      {d.status === 'progress' && !rejected && d.signers.some((s) => actingId(s) === me && s.status === 'signed') &&
         <div className="doc-note-min"><Icon.clock /> ທ່ານໄດ້ເຊັນແລ້ວ · ລໍຖ້າຜູ້ອື່ນລົງນາມ</div>}
     </button>
   )
@@ -259,16 +259,18 @@ function Overview({ docs, me, onOpen }) {
   const [drill, setDrill] = useState(null) // { title, list }
   const REF = new Date().getDate() // realtime — ນັບໄລຍະເວລາຈາກມື້ນີ້ຈິງ
   const inPeriod = (d) => (period === 'all' ? true : period === 'week' ? REF - d.ts <= 7 : REF - d.ts <= 30)
-  const scoped = docs.filter((d) => (d.creatorId === me || d.signers.some((s) => s.id === me) || (d.cc || []).includes(me)) && inPeriod(d))
+  // E3/E12: นับ "เกี่ยวข้อง" แบบกว้าง (isInvolved) — ทั้งเจ้าของที่นั่งเดิม + ผู้รับมอบหมาย
+  const scoped = docs.filter((d) => (d.creatorId === me || d.signers.some((s) => isInvolved(s, me)) || (d.cc || []).includes(me)) && inPeriod(d))
 
   // ── ຕາມແຫຼ່ງ (source) ──
   const created = scoped.filter((d) => d.creatorId === me)
-  const received = scoped.filter((d) => d.creatorId !== me && d.signers.some((s) => s.id === me))
-  const ccMe = scoped.filter((d) => d.creatorId !== me && !d.signers.some((s) => s.id === me) && (d.cc || []).includes(me))
+  const received = scoped.filter((d) => d.creatorId !== me && d.signers.some((s) => isInvolved(s, me)))
+  const ccMe = scoped.filter((d) => d.creatorId !== me && !d.signers.some((s) => isInvolved(s, me)) && (d.cc || []).includes(me))
   // ── ຕາມການກະທຳ ──
   const waitMe = scoped.filter((d) => isMyTurn(d, me))
   const waitOthers = scoped.filter((d) => d.creatorId === me && d.status === 'progress')
-  const signedMe = scoped.filter((d) => d.signers.some((s) => s.id === me && s.status === 'signed'))
+  // "ຂ້ອຍລົງນາມແລ້ວ" = me act ຈິງ (actingId) — ບໍ່ໃຊ້ isInvolved ເພາະຖ້າมอบไปให้คนอื่นเซ็น ไม่ถือว่า "ฉันเซ็น"
+  const signedMe = scoped.filter((d) => d.signers.some((s) => actingId(s) === me && s.status === 'signed'))
   // ── ຕາມສະຖານະ ──
   const progressList = scoped.filter((d) => d.status === 'progress')
   const doneList = scoped.filter((d) => d.status === 'done')
@@ -466,11 +468,11 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
     onConsumeOpenReq && onConsumeOpenReq()
   }, [openReq])
   const detailReq = acDetail?.req ? pointsReqs.find((p) => p.id === acDetail.req.id) : null // live points req
-  // request ຂໍລາຍເຊັນ: ລໍຖ້າ me (esign) + ທີ່ me ເຊັນແລ້ວ (approved) + ທີ່ me ປະຕິເສດ (rejected) → ຢູ່ຄົບທຸກ tab
+  // request ຂໍລາຍເຊັນ: ລໍຖ້າ me (esign) + ທີ່ me ເຊັນແລ້ວ (approved) + ທີ່ me ປະຕິເສດ (rejected) → ຢູ່ຄົบทุก tab (E3/E12: actingId รองรับ delegation)
   const esignItems = docs
-    .filter((d) => d.signers.some((s) => s.id === me) && (isMyTurn(d, me) || d.signers.some((s) => s.id === me && (s.status === 'signed' || s.status === 'rejected'))))
+    .filter((d) => d.signers.some((s) => actingId(s) === me) && (isMyTurn(d, me) || d.signers.some((s) => actingId(s) === me && (s.status === 'signed' || s.status === 'rejected'))))
     .map((d) => {
-      const mine = d.signers.find((s) => s.id === me)
+      const mine = d.signers.find((s) => actingId(s) === me)
       const status = mine.status === 'signed' ? 'approved' : mine.status === 'rejected' ? 'rejected' : 'esign'
       return { kind: 'esign', id: d.id, title: d.title, byId: d.creatorId, by: nameOf(d.creatorId), date: d.date, status, docId: d.id, docNo: d.docNo, docType: docTypeOf(d), signers: d.signers }
     })
@@ -711,13 +713,13 @@ function NotiPanel({ notis, onClose, onOpen }) {
 }
 
 // ─────────── main ───────────
-// 5 tab ຫຼັກ (ຫົວໜ້າ confirm 16/07) — tab bar ເລື່ອນຊ້າຍຂວາໄດ້ (scrollable)
-//   ລົງນາມແລ້ວ ຖືກຕັດ (ຢູ່ໃນ ປະຫວັດທັງໝົດ ແລ້ວ) · tab 6 ລໍຫົວໜ້າ confirm
+// 6 tab ຫຼັກ — tab bar ເລື່ອນຊ້າຍຂວາໄດ້ (scrollable) — tab 6 = ມອບໝາຍ (E3/E12)
 const TABS = [
   { key: 'tosign', label: 'ຕ້ອງການລາຍເຊັນຂ້ອຍ', icon: Icon.pen },
   { key: 'created', label: 'ລໍຖ້າຜູ້ອື່ນເຊັນ', icon: Icon.clock },
   { key: 'cc', label: 'ໄດ້ຮັບສຳເນົາ', icon: Icon.users },
   { key: 'history', label: 'ປະຫວັດທັງໝົດ', icon: Icon.doc },
+  { key: 'assigned', label: 'ມອບໝາຍ', icon: Icon.swap },
   { key: 'reports', label: 'ລາຍງານ & ສະຖິຕິ', icon: Icon.chart },
 ]
 
@@ -753,6 +755,52 @@ function NotiCard({ n, onOpen, onOpenReq }) {
   )
 }
 
+// ─────────── tab 6: ມອບໝາຍ (E3/E12) — มอบไปให้คนอื่น + ได้รับมอบจากคนอื่น มีตัวกรอง ───────────
+const ASSIGN_FILTERS = [{ k: 'all', t: 'ທັງໝົດ' }, { k: 'out', t: 'ມອບໄປ' }, { k: 'in', t: 'ໄດ້ຮັບມອບ' }]
+function AssignedTab({ docs, me, onOpen }) {
+  const [filter, setFilter] = useState('all')
+  const awayDocs = docs.filter((d) => d.signers.some((s) => s.id === me && s.assignedTo))
+  const inDocs = docs.filter((d) => d.signers.some((s) => s.assignedTo === me))
+  const list = filter === 'out' ? awayDocs : filter === 'in' ? inDocs : [...new Set([...awayDocs, ...inDocs])]
+  const countOf = (k) => (k === 'out' ? awayDocs.length : k === 'in' ? inDocs.length : awayDocs.length + inDocs.length)
+  return (
+    <>
+      <div className="req-sf">
+        {ASSIGN_FILTERS.map((f) => (
+          <button key={f.k} className={`req-sf-chip ${filter === f.k ? 'on' : ''}`} onClick={() => setFilter(f.k)}>{f.t} ({countOf(f.k)})</button>
+        ))}
+      </div>
+      {list.length === 0 ? <p className="empty-list">ຍັງບໍ່ມີການມອບໝາຍ</p> : list.map((d) => {
+        const outSeat = d.signers.find((s) => s.id === me && s.assignedTo)
+        const inSeat = d.signers.find((s) => s.assignedTo === me)
+        const isOut = filter === 'in' ? false : !!outSeat
+        const seat = isOut ? outSeat : inSeat
+        const counterpart = isOut ? seat.assignedTo : seat.id
+        const sty = docTypeStyle(d)
+        return (
+          <button className="req-card" key={d.id} style={{ borderLeft: `4px solid ${sty.main}` }} onClick={() => onOpen(d.id)}>
+            <span className="req-card-ic" style={{ background: sty.main }}><Icon.swap /></span>
+            <div className="req-card-body">
+              <div className="req-card-top">
+                <b>{d.title}</b>
+                <span className={`req-badge ${seat.status === 'signed' ? 'done' : seat.status === 'rejected' ? 'rej' : 'wait'}`}>
+                  {seat.status === 'signed' ? 'ແລ້ວ' : seat.status === 'rejected' ? 'ປະຕິເສດ' : 'ລໍຖ້າ'}
+                </span>
+              </div>
+              <span className="req-card-when"><Icon.calendar /> {d.date}{d.docNo && <><Icon.doc /> {d.docNo}</>}</span>
+              <div className="req-chips">
+                <span className="req-chip hl">{isOut ? `ມອບໃຫ້ ${nameOf(counterpart)}` : `ຮັບມອບຈາກ ${nameOf(counterpart)}`}</span>
+                <span className="req-chip">{seat.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'}ແທນ</span>
+              </div>
+            </div>
+            <Icon.chevron />
+          </button>
+        )
+      })}
+    </>
+  )
+}
+
 export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], director, onCreatePoints, onPointsComment, onPointsEditComment, onPointsDeleteComment, onPointsAction, reqs = {}, onReqAction, onCreateReq, onCancelReq, onReqComment, onReqEditComment, onReqDeleteComment,
   onCreateKn, onSubmitKn, onKnLike, onKnView, onMarkRead, onNew, onOpenDoc, onOpenFromNoti, onOpenSettings }) {
   const [tab, setTab] = useState('tosign')
@@ -768,15 +816,15 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
   // tab 2 ລໍຖ້າຜູ້ອື່ນເຊັນ = request ທີ່ຂ້ອຍສ້າງ ແລະ ຍັງບໍ່ສຳເລັດ
   // tab 3 ລົງນາມແລ້ວ = ຄົນອື່ນສ້າງ+ຂ້ອຍເຊັນແລ້ວ  ຫຼື  ຂ້ອຍສ້າງ+ເຊັນຄົບແລ້ວ (ບໍ່ແຍກຕາມຜູ້ສ້າງ)
   const toSign = docs
-    .filter((d) => d.status === 'progress' && d.signers.some((s) => s.id === me && s.status !== 'signed' && s.status !== 'rejected'))
+    .filter((d) => d.status === 'progress' && d.signers.some((s) => actingId(s) === me && s.status !== 'signed' && s.status !== 'rejected'))
     .sort((a, b) => (isMyTurn(b, me) ? 1 : 0) - (isMyTurn(a, me) ? 1 : 0))
   const created = docs.filter((d) => d.creatorId === me && d.status !== 'done')
   // tab ປະຫວັດທັງໝົດ = ໃບທີ່ຂ້ອຍກ່ຽວຂ້ອງ (ສ້າງ / ຢູ່ໃນສາຍເຊັນ / ໄດ້ CC) ທີ່ "ຈົບແລ້ວ"
   //   ໃບທີ່ຍັງຄ້າງ (progress) ບໍ່ນັບເປັນປະຫວັດ — ຢູ່ tab 1/2/3 ຢູ່ແລ້ວ (Lucky ສັ່ງ 17/07)
   const history = docs.filter((d) => d.status !== 'progress'
-    && (d.creatorId === me || d.signers.some((s) => s.id === me) || (d.cc || []).includes(me)))
+    && (d.creatorId === me || d.signers.some((s) => isInvolved(s, me)) || (d.cc || []).includes(me)))
   // ໄດ້ຮັບ CC = ຄົນອื่นสร้าง + ฉันไม่ได้เป็นผู้เซ็น + ฉันอยู่ใน cc
-  const ccDocs = docs.filter((d) => d.creatorId !== me && !d.signers.some((s) => s.id === me) && (d.cc || []).includes(me))
+  const ccDocs = docs.filter((d) => d.creatorId !== me && !d.signers.some((s) => isInvolved(s, me)) && (d.cc || []).includes(me))
   const myNotis = notis.filter((n) => n.forId === me)
   const unread = myNotis.filter((n) => !n.read).length
   // badge tosign = ຈຳນວນທີ່ໂຊໃນ tab ຈິງ (ກົງກັບການ໌ດ — ບໍ່ນັບສະເພາະຮອບຂ້ອຍ)
@@ -875,7 +923,9 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
               ? <DocList key="created" mode="created" docs={created} me={me} onOpen={onOpenDoc} empty="ທ່ານຍັງບໍ່ໄດ້ສ້າງເອກະສານ" />
               : tab === 'history'
                 ? <DocList key="history" mode="history" docs={history} me={me} onOpen={onOpenDoc} empty="ຍັງບໍ່ມີປະຫວັດເອກະສານ" creatorMode />
-                : <Overview docs={visibleDocs(docs, me)} me={me} onOpen={onOpenDoc} />}
+                : tab === 'assigned'
+                  ? <AssignedTab docs={docs} me={me} onOpen={onOpenDoc} />
+                  : <Overview docs={visibleDocs(docs, me)} me={me} onOpen={onOpenDoc} />}
       </div>
 
       {/* ໂມດູນທີ່ມີ FAB ຂອງຕົນເອງ (ສ້າງຕາມ tab ທີ່ເປີດຢູ່) → ບໍ່ໂຊ FAB ກາງ ບໍ່ດັ່ງນັ້ນຈະຊ້ອນກັນ 2 ປຸ່ມ

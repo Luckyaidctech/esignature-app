@@ -3,7 +3,7 @@ import { Icon, Header, LanitStamp, ResultPopup } from './shared.jsx'
 import SignaturePad from './SignaturePad.jsx'
 import PdfViewer from './PdfViewer.jsx'
 import { DocPageBody } from './DocSignatures.jsx'
-import { nameOf } from '../home/data.js'
+import { nameOf, actingId } from '../home/data.js'
 
 const noop = () => {}
 
@@ -11,7 +11,9 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y)
 
 
-export default function SignScreen({ doc, mySig, bio = false, signerName = 'ຜູ້ລົງນາມ', meId, onSaveSig, onDone, onOriginalSign, onBack }) {
+export default function SignScreen({ doc, mySig, bio = false, signerName = 'ຜູ້ລົງນາມ', meId, placementOwnerId, onSaveSig, onDone, onOriginalSign, onBack }) {
+  // E3/E12: placements ຖືກສ້າງໄວ້ຕາມ id ຂອງ "ที่นั่ง" ເດີມ — ຖ້າ me ຮັບມอบหมายมา placementOwnerId ຈะไม่เท่ากับ meId
+  const pOwner = placementOwnerId || meId
   const [stage, setStage] = useState('doc') // doc | choose | draw | original | connecting | otp | place | bio | success
   const [sig, setSig] = useState(null)
   const [sigType, setSigType] = useState('img') // 'img' | 'lanit' | 'original'
@@ -41,7 +43,7 @@ export default function SignScreen({ doc, mySig, bio = false, signerName = 'ຜ�
   const startPlace = (s, type = 'img') => {
     setSig(s); setSigType(type)
     if (files.some((f) => f.file) && doc.placements?.length > 0) {
-      setSigFilled((doc.placements || []).filter((p) => p.signerId === meId).map((p) => p.id)) // ເຕີມທຸກຊ່ອງຂອງຕົນ
+      setSigFilled((doc.placements || []).filter((p) => p.signerId === pOwner).map((p) => p.id)) // ເຕີມທຸກຊ່ອງຂອງຕົນ
       setStage('place'); return
     }
     setPlaced((p) => p || { x: 0.5, y: 0.72, scale: type === 'lanit' ? 0.9 : 1 }); setStage('place')
@@ -114,20 +116,20 @@ export default function SignScreen({ doc, mySig, bio = false, signerName = 'ຜ�
 
 
   // watermark ສະແດງຕອນ request ຍັງບໍ່ສຳເລັດ — ຫາຍໄປເມື່ອຄົນສຸດທ້າຍລົງນາມຄົບ
-  const willBeDone = doc.signers.every((s) => s.id === meId || s.status === 'signed')
+  const willBeDone = doc.signers.every((s) => actingId(s) === meId || s.status === 'signed')
   const hasRealFiles = files.some((f) => f.file) // ໄຟລ໌ຈິງທີ່ອັບໂຫລດ → ສະແດງ PDF ຈິງ + watermark
   const hasPlacements = hasRealFiles && (doc.placements?.length > 0) // ມີ sign field ຮາຍ signer
   // signers ສຳລັບ PdfViewer: ຄົນອื่น hasSig=ເຊັນแล้ว / ຕົນເອງ hasSig=false (ໃຊ້ fill/isMe ຕາມ per-box)
-  const signersForPdf = doc.signers.map((s) => ({ id: s.id, name: nameOf(s.id), hasSig: s.id !== meId && s.status === 'signed' }))
+  const signersForPdf = doc.signers.map((s) => ({ id: s.id, name: nameOf(s.id), hasSig: s.id !== pOwner && s.status === 'signed' }))
   // ຜู้เซ็น เห็นเฉพาะช่องของตัวเอง + ช่องคนอื่นที่ເຊັນแล้ว (ບໍ່ເຫັນ pending ຄົນອື່ນ)
   const signedIds = new Set(doc.signers.filter((s) => s.status === 'signed').map((s) => s.id))
-  const myPlacementIds = (doc.placements || []).filter((p) => p.signerId === meId).map((p) => p.id)
+  const myPlacementIds = (doc.placements || []).filter((p) => p.signerId === pOwner).map((p) => p.id)
   const allFilled = myPlacementIds.length > 0 && myPlacementIds.every((id) => sigFilled.includes(id)) // ເຊັນຄົບທຸກຊ່ອງ
   // ຂໍ້ມູນລາຍເຊັນ (img + type + scale + ตำแหน่ง) ຂອງແຕ່ລະຊ່ອງ → ບັນທຶກ end-to-end
   const buildSigData = () => (hasPlacements
     ? sigFilled.map((pid) => ({ id: pid, img: sigType === 'img' ? sig : null, type: sigType, sealImg: mySig, date: dateStr, scale: mySigScales[pid] || 1, pos: mySigPos[pid] }))
     : [])
-  const visiblePlacements = (doc.placements || []).filter((p) => p.signerId === meId || signedIds.has(p.signerId))
+  const visiblePlacements = (doc.placements || []).filter((p) => p.signerId === pOwner || signedIds.has(p.signerId))
     .map((p) => mySigPos[p.id] ? { ...p, xPct: mySigPos[p.id].x, yPct: mySigPos[p.id].y } : p) // ຕຳແໜ່ງ override (ลากย้าย)
   const Pages = ({ withSig, final }) => (
     <div className={`sign-doc ${gesturing ? 'gesturing' : ''}`} ref={docRef}
@@ -137,10 +139,10 @@ export default function SignScreen({ doc, mySig, bio = false, signerName = 'ຜ�
       onWheel={final ? undefined : onWheel} onClick={final ? undefined : placeAt}>
       {hasRealFiles ? (
         <PdfViewer files={files} mode="preview" watermark={!(final && willBeDone)}
-          activeSignerId={hasPlacements ? meId : null}
+          activeSignerId={hasPlacements ? pOwner : null}
           placements={hasPlacements ? visiblePlacements : []} signers={hasPlacements ? signersForPdf : []}
           pageFooter={{ date: (() => { const s = doc.signers.filter((x) => x.status === 'signed' && x.time); return s.length ? s[s.length - 1].time : doc.date })(), docId: doc.id }}
-          myFill={hasPlacements && sigFilled.length ? { signerId: meId, sigImg: sigType === 'img' ? sig : null, sigType, sealImg: mySig, date: dateStr, scales: mySigScales, filled: sigFilled } : null}
+          myFill={hasPlacements && sigFilled.length ? { signerId: pOwner, sigImg: sigType === 'img' ? sig : null, sigType, sealImg: mySig, date: dateStr, scales: mySigScales, filled: sigFilled } : null}
           onSigSetScale={final ? undefined : (pid, s) => setMySigScales((m) => ({ ...m, [pid]: clamp(+s.toFixed(2), 0.5, 2.5) }))}
           onSigMove={final ? undefined : (pid, x, y) => setMySigPos((m) => ({ ...m, [pid]: { x, y } }))}
           onSigDelete={final ? undefined : (pid) => setSigFilled((f) => f.filter((id) => id !== pid))}
@@ -148,7 +150,7 @@ export default function SignScreen({ doc, mySig, bio = false, signerName = 'ຜ�
           onAdd={noop} onMove={noop} onRemove={noop} />
       ) : files.map((f, i) => (
         <div className="sign-page" key={i}>
-          <DocPageBody doc={doc} file={f} wm={!(final && willBeDone)} meId={meId} />
+          <DocPageBody doc={doc} file={f} wm={!(final && willBeDone)} meId={pOwner} />
         </div>
       ))}
       {withSig && placed && !hasPlacements && (

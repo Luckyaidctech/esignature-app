@@ -4,7 +4,8 @@ import DocDetail from './home/DocDetail.jsx'
 import SignatureFlow from './flow/SignatureFlow.jsx'
 import SignScreen from './flow/SignScreen.jsx'
 import Settings from './flow/Settings.jsx'
-import { initialDocs, initialReqs, SAMPLE_IMG, uid, nameOf, isMyTurn, approvalChain, approvedCount, nowDate, docTypeOf, nextDocNo, withDocNos } from './home/data.js'
+import FlowSettingsScreen from './flow/FlowSettingsScreen.jsx'
+import { initialDocs, initialReqs, SAMPLE_IMG, uid, nameOf, isMyTurn, actingId, approvalChain, approvedCount, nowDate, docTypeOf, nextDocNo, withDocNos, DEFAULT_DOC_SUBTYPES, canManageFlowSettings } from './home/data.js'
 
 // noti เริ่มต้น: แจ้งผู้เซ็นที่ถึงคิว (ให้เข้าถึง request ที่ต้องเซ็นได้ ผ่านกระดิ่ง)
 function buildInitialNotis(ds) {
@@ -32,7 +33,7 @@ function buildInitialNotis(ds) {
 // ໜ້າຫຼັກ My e-Signature ↔ ລາຍລະອຽດເອກະສານ ↔ flow ສ້າງ (3 ຂັ້ນຕອນ)
 // ຮອງຮັບ 2 ຜູ້ใช้ (A ↔ B) + ລະບົບແຈ້ງເຕືອນ (noti)
 export default function App() {
-  const [view, setView] = useState('home') // 'home' | 'create' | 'detail' | 'sign' | 'settings'
+  const [view, setView] = useState('home') // 'home' | 'create' | 'detail' | 'sign' | 'settings' | 'flowSettings'
   const [me, setMe] = useState('A')
   const [docs, setDocs] = useState(() => withDocNos(initialDocs()))
   const [notis, setNotis] = useState(() => buildInitialNotis(initialDocs())) // { id, forId, text, docId, time, read }
@@ -41,6 +42,21 @@ export default function App() {
   const [reqs, setReqs] = useState(initialReqs) // ຄຳຂໍທົ່ວໄປ — ໃຊ້ຮ່ວມ ໂມດູນ "ຄຳຂໍ" ແລະ "ການອະນຸມັດ"
   const [mySigs, setMySigs] = useState({}) // { [userId]: dataURL } ລາຍເຊັນທີ່ບັນທຶກ
   const [bios, setBios] = useState({}) // { [userId]: bool } — biometric (Face ID / ລາຍນິ້ວມື) ຢືนยันตอนลงนาม
+  // E7/E8/E10 Tab 6: subtype ທັງໝົດເປັນ state ແກ້ໄດ້ເຕັມ (deputy/director ເທົ່ານັ້ນ) — ຊື່/prefix/ໝວດ/lockAll/chain/cc + ເພີ່ມ/ລຶບ subtype ໄດ້
+  const [docSubtypes, setDocSubtypes] = useState(() => DEFAULT_DOC_SUBTYPES.map((s) => ({ ...s })))
+  const onUpdateSubtype = (key, patch) => setDocSubtypes((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)))
+  const onAddSubtype = (sub) => {
+    let key = sub.key
+    let i = 2
+    while (docSubtypes.some((s) => s.key === key)) { key = `${sub.key}${i}`; i += 1 }
+    setDocSubtypes((prev) => [...prev, { ...sub, key }])
+    return key
+  }
+  const onDeleteSubtype = (key) => setDocSubtypes((prev) => prev.filter((s) => s.key !== key))
+  const onResetSubtype = (key) => {
+    const def = DEFAULT_DOC_SUBTYPES.find((s) => s.key === key)
+    if (def) setDocSubtypes((prev) => prev.map((s) => (s.key === key ? { ...def } : s)))
+  }
   // ຄຳຂໍຄະແນນ Workboard (seed + ທີ່ສ້າງໃໝ່) — ທຸກອັນໃຊ້ detail hero ດຽວກັນ
   const [pointsReqs, setPointsReqs] = useState(() => [
     // ── ຄົບທຸກສະຖານະ × ຫຼາຍຜູ້ຂໍ × Activity/Task ──
@@ -163,7 +179,7 @@ export default function App() {
   // ปฏิเสธ → ล็อก request ทั้งใบ (status='rejected' ทำอะไรต่อไม่ได้)
   const onReject = (docId, reason) => {
     setDocs((ds) => ds.map((d) => d.id === docId
-      ? { ...d, status: 'rejected', signers: d.signers.map((s) => (s.id === me ? { ...s, status: 'rejected', reason } : s)) }
+      ? { ...d, status: 'rejected', signers: d.signers.map((s) => (actingId(s) === me ? { ...s, status: 'rejected', reason } : s)) }
       : d))
     const d = docs.find((x) => x.id === docId)
     if (d && d.creatorId !== me) pushNoti(d.creatorId, `${nameOf(me)} ໄດ້ປະຕິເສດ "${d.title}"${reason ? ` — ${reason}` : ''}`, docId, 'rejected')
@@ -172,25 +188,26 @@ export default function App() {
   const onStartSign = (docId) => { setSignId(docId); setView('sign') }
   // ── noti ຫຼັງຈາກ me ເຊັນ (d = doc ก่อน update) — ใช้ร่วม markSigned (digital) + onOriginalSign (E2/E13) ──
   const notifyAfterSign = (d, docId) => {
-    // ສະຖານະຫຼັງຈາກຂ້ອຍເຊັນ (docs ຍັງເປັນຄ່າເກົ່າໃນ closure ນີ້)
-    const after = d.signers.map((s) => (s.id === me ? { ...s, status: 'signed' } : s))
+    // ສะถานะหลังจากฉันเซ็น (docs ยังเป็นค่าเก่าใน closure นี้) — E3/E12: ຈັບຄູ່ດ້ວຍ actingId รองรับ delegation
+    const after = d.signers.map((s) => (actingId(s) === me ? { ...s, status: 'signed' } : s))
     const allDone = after.every((s) => s.status === 'signed')
     const notified = new Set([me])
     // 1) ຜູ້ສ້າງ → ຮູ້ວ່າມີຄົນເຊັນແລ້ວ
     if (d.creatorId !== me) { pushNoti(d.creatorId, `${nameOf(me)} ໄດ້ເຊັນ "${d.title}" ແລ້ວ`, docId, 'signed'); notified.add(d.creatorId) }
     if (allDone) {
-      // 2) ຄົບທຸກຄົນ → ແຈ້ງທຸກຝ່າຍວ່າສຳເລັດ
-      after.forEach((s) => { if (!notified.has(s.id)) { pushNoti(s.id, `"${d.title}" ໄດ້ຮັບການລົງນາມຄົບຖ້ວນແລ້ວ`, docId, 'done'); notified.add(s.id) } })
+      // 2) ຄົບທຸກຄົນ → ແຈ້ງທຸກຝ່າຍວ່າສຳເລັດ (ແຈ້ງຄົນທີ່ act ຈິງ ຖ້າມອບໝາຍ)
+      after.forEach((s) => { const pid = actingId(s); if (!notified.has(pid)) { pushNoti(pid, `"${d.title}" ໄດ້ຮັບການລົງນາມຄົບຖ້ວນແລ້ວ`, docId, 'done'); notified.add(pid) } })
     } else {
-      // 3) ຮອດຄິວໃຜຕໍ່ → ແຈ້ງຄົນນັ້ນ (ບໍ່ດັ່ງນັ້ນລາວບໍ່ຮູ້ວ່າຮອດຮອບຕົນ)
+      // 3) ຮອດຄິວໃຜຕໍ່ → ແຈ້ງຄົນນັ້ນ (ບໍ່ດັ່ງນັ້ນລາວບໍ່ຮູ້ວ່າຮອດຮອບຕົນ) — ແຈ້ງ actingId ຄົນທີ່ຕ້ອງ act ຈິງ
       const pending = after.filter((s) => s.status !== 'signed' && s.status !== 'rejected')
       const nextStep = Math.min(...pending.map((s) => s.step))
       pending.filter((s) => s.step === nextStep).forEach((s) => {
-        if (notified.has(s.id)) return
+        const pid = actingId(s)
+        if (notified.has(pid)) return
         // ຜູ້ອະນຸມັດ ບໍ່ໄດ້ເຊັນ → ໃຊ້ຄຳວ່າ "ອະນຸມັດ" ບໍ່ແມ່ນ "ລົງນາມ"
         const act = s.role === 'approver' ? 'ອະນຸມັດ' : 'ລົງນາມ'
-        pushNoti(s.id, `ຮອດຮອບຂອງທ່ານແລ້ວ — ກະລຸນາ${act} "${d.title}"`, docId, 'sign')
-        notified.add(s.id)
+        pushNoti(pid, `ຮອດຮອບຂອງທ່ານແລ້ວ — ກະລຸນາ${act} "${d.title}"`, docId, 'sign')
+        notified.add(pid)
       })
     }
   }
@@ -198,7 +215,7 @@ export default function App() {
   const markSigned = (docId, sigData = []) => {
     setDocs((ds) => ds.map((d) => {
       if (d.id !== docId) return d
-      const signers = d.signers.map((s) => (s.id === me ? { ...s, status: 'signed', time: 'ຕອນນີ້' } : s))
+      const signers = d.signers.map((s) => (actingId(s) === me ? { ...s, status: 'signed', time: 'ຕອນນີ້' } : s))
       // ບັນທຶກລາຍເຊັນ (img + scale + ตำแหน่ง) ລົງໃນ placements ຂອງ me → ໂຊເมื่อเปิดดูภายหลัง (end-to-end)
       const sigMap = Object.fromEntries(sigData.map((sd) => [sd.id, sd]))
       const placements = (d.placements || []).map((p) => sigMap[p.id]
@@ -217,14 +234,36 @@ export default function App() {
       if (d.id !== docId) return d
       // ອັບໂຫລດແທນທີ່ຄົบทุกไฟล์ (filesByIndex = { [fileIndex]: File } — ครบทุกไฟล์เพราะ SignScreen บังคับอัปโหลดครบก่อนถึงจะกด OTP ได้)
       const files = d.files.map((f, i) => (filesByIndex[i] ? { ...f, file: filesByIndex[i], original: true } : f))
-      const signers = d.signers.map((s) => (s.id === me ? { ...s, status: 'signed', time: 'ຕອນນີ້', sigType: 'original' } : s))
-      const placements = (d.placements || []).filter((p) => p.signerId !== me) // ຊ່ອງເຊັນຂອງ me ບໍ່ຈຳເປັນແລ້ວ (ໜ້າສະແກນມີລາຍເຊັນຈິງຢູ່ແລ້ວ)
+      const seatId = d.signers.find((s) => actingId(s) === me)?.id || me // placement ผูกกับ id ที่นั่งเดิม ไม่ใช่ me เสมอไป (E3/E12 delegation)
+      const signers = d.signers.map((s) => (actingId(s) === me ? { ...s, status: 'signed', time: 'ຕອນນີ້', sigType: 'original' } : s))
+      const placements = (d.placements || []).filter((p) => p.signerId !== seatId) // ຊ່ອງເຊັນຂອງທີ່ນັ່ງນີ້ບໍ່ຈຳເປັນແລ້ວ (ໜ້າສະແກນມີລາຍເຊັນຈິງຢູ່ແລ້ວ)
       return { ...d, files, signers, placements, status: signers.every((s) => s.status === 'signed') ? 'done' : 'progress' }
     }))
     const d = docs.find((x) => x.id === docId)
     if (!d) { setView('home'); return }
     notifyAfterSign(d, docId)
     setView('home')
+  }
+  // ── E3/E12: ມอบหมายให้คนอื่นเซ็น/อนุมัติแทน — ผู้รับมอบได้ role เดิมของที่นั่งไปเลย (dedicated 'assigned' tab แสดงทั้ง 2 ทิศ) ──
+  const onAssign = (docId, seatId, assigneeId) => {
+    setDocs((ds) => ds.map((d) => (d.id === docId
+      ? { ...d, signers: d.signers.map((s) => (s.id === seatId ? { ...s, assignedTo: assigneeId } : s)) }
+      : d)))
+    const d = docs.find((x) => x.id === docId)
+    const seat = d?.signers.find((s) => s.id === seatId)
+    if (!d || !seat) return
+    const act = seat.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'
+    if (assigneeId !== me) pushNoti(assigneeId, `${nameOf(me)} ໄດ້ມອບໝາຍໃຫ້ທ່ານ${act}ແທນ "${d.title}"`, docId, 'sign')
+    if (d.creatorId !== me && d.creatorId !== assigneeId) pushNoti(d.creatorId, `${nameOf(me)} ໄດ້ມອບໝາຍໃຫ້ ${nameOf(assigneeId)} ${act}ແທນ ໃນ "${d.title}"`, docId, 'info')
+  }
+  // ── ดึงการมอบหมายคืน — เฉพาะเจ้าของที่นั่งเดิม (s.id) ทำได้ ──
+  const onRevokeAssign = (docId, seatId) => {
+    const d = docs.find((x) => x.id === docId)
+    const prevAssignee = d?.signers.find((s) => s.id === seatId)?.assignedTo
+    setDocs((ds) => ds.map((x) => (x.id === docId
+      ? { ...x, signers: x.signers.map((s) => (s.id === seatId ? { ...s, assignedTo: null } : s)) }
+      : x)))
+    if (d && prevAssignee && prevAssignee !== me) pushNoti(prevAssignee, `${nameOf(me)} ໄດ້ດຶງການມອບໝາຍຄືນ ໃນ "${d.title}"`, docId, 'cancelled')
   }
   const onSaveSig = (dataURL) => setMySigs((m) => ({ ...m, [me]: dataURL }))
   const onDeleteSig = () => setMySigs((m) => { const c = { ...m }; delete c[me]; return c })
@@ -371,20 +410,26 @@ export default function App() {
   // ── ສ້າງ request ໃໝ່ → ບັນທຶກເຂົ້າ docs (ໂຊ tab 1) + ແຈ້ງຜູ້ເຊັນທີ່ຖึงคิว ──
   const onCreate = (doc) => {
     // ໃສ່ docNo (E15) — ຄິດຈາກ docs ປັດຈຸບັນ (ບໍ່ແຕະ doc.id)
-    const docWithNo = { ...doc, docNo: nextDocNo(docs, docTypeOf(doc), doc.date) }
+    const docWithNo = { ...doc, docNo: nextDocNo(docs, doc, doc.date) }
     setDocs((ds) => [docWithNo, ...ds])
     doc.signers.forEach((s) => { if (isMyTurn(doc, s.id)) pushNoti(s.id, `ກະລຸນາລົງນາມ "${doc.title}"`, doc.id, 'sign') })
     ;(doc.cc || []).forEach((cid) => pushNoti(cid, `ທ່ານໄດ້ຮັບສຳເນົາ (CC) "${doc.title}"`, doc.id, 'cc'))
   }
 
-  if (view === 'create') return <SignatureFlow me={me} onCreate={onCreate} onExit={() => setView('home')} />
-  if (view === 'settings') return <Settings mySig={mySigs[me]} bio={bio} onSaveSig={onSaveSig} onDeleteSig={onDeleteSig} onToggleBio={onToggleBio} onBack={() => setView('home')} />
+  if (view === 'create') return <SignatureFlow me={me} docSubtypes={docSubtypes} onCreate={onCreate} onExit={() => setView('home')} />
+  if (view === 'settings') return <Settings mySig={mySigs[me]} bio={bio} onSaveSig={onSaveSig} onDeleteSig={onDeleteSig} onToggleBio={onToggleBio}
+    canManageFlow={canManageFlowSettings(me)} onOpenFlowSettings={() => setView('flowSettings')} onBack={() => setView('home')} />
+  if (view === 'flowSettings') return <FlowSettingsScreen subtypes={docSubtypes} defaultSubtypes={DEFAULT_DOC_SUBTYPES}
+    onUpdate={onUpdateSubtype} onAdd={onAddSubtype} onDelete={onDeleteSubtype} onReset={onResetSubtype} onBack={() => setView('settings')} />
   if (view === 'sign') {
     const sd = docs.find((d) => d.id === signId)
-    if (sd) return <SignScreen doc={sd} mySig={mySigs[me]} bio={bio} signerName={nameOf(me)} meId={me} onSaveSig={onSaveSig} onDone={markSigned} onOriginalSign={(file) => onOriginalSign(signId, file)} onBack={() => setView(openId ? 'detail' : 'home')} />
+    // E3/E12: placements ผูกกับ id ที่นั่งเดิม (ไม่ใช่ me เสมอไปถ้ารับมอบหมายมา) → หา seat id ให้ SignScreen ใช้จับคู่ placement
+    const seatId = sd?.signers.find((s) => actingId(s) === me)?.id || me
+    if (sd) return <SignScreen doc={sd} mySig={mySigs[me]} bio={bio} signerName={nameOf(me)} meId={me} placementOwnerId={seatId} onSaveSig={onSaveSig} onDone={markSigned} onOriginalSign={(file) => onOriginalSign(signId, file)} onBack={() => setView(openId ? 'detail' : 'home')} />
   }
   if (view === 'detail' && doc)
     return <DocDetail doc={doc} me={me} onBack={() => setView('home')}
+      onAssign={onAssign} onRevokeAssign={onRevokeAssign}
       onReject={onReject} onSign={onStartSign} onApprove={(id) => markSigned(id)} onComment={onComment} onCancel={onCancel} onRemind={onRemind}
       onEditComment={onEditComment} onDeleteComment={onDeleteComment} />
   return <HomeScreen me={me} setMe={setMe} docs={docs} notis={notis}
