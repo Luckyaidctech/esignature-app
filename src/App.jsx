@@ -5,7 +5,7 @@ import SignatureFlow from './flow/SignatureFlow.jsx'
 import SignScreen from './flow/SignScreen.jsx'
 import Settings from './flow/Settings.jsx'
 import FlowSettingsScreen from './flow/FlowSettingsScreen.jsx'
-import { initialDocs, initialReqs, SAMPLE_IMG, uid, nameOf, isMyTurn, actingId, approvalChain, approvedCount, nowDate, docTypeOf, nextDocNo, withDocNos, DEFAULT_DOC_SUBTYPES, canManageFlowSettings } from './home/data.js'
+import { initialDocs, initialReqs, SAMPLE_IMG, uid, nameOf, isMyTurn, actingId, approvalChain, approvedCount, nowDate, docTypeOf, nextDocNo, withDocNos, DEFAULT_DOC_SUBTYPES, DOC_CATEGORIES, canManageFlowSettings } from './home/data.js'
 
 // noti เริ่มต้น: แจ้งผู้เซ็นที่ถึงคิว (ให้เข้าถึง request ที่ต้องเซ็นได้ ผ่านกระดิ่ง)
 function buildInitialNotis(ds) {
@@ -56,6 +56,15 @@ export default function App() {
   const onResetSubtype = (key) => {
     const def = DEFAULT_DOC_SUBTYPES.find((s) => s.key === key)
     if (def) setDocSubtypes((prev) => prev.map((s) => (s.key === key ? { ...def } : s)))
+  }
+  // ໝວດ (ພະແນກ) ກໍແກ້ໄດ້ຈາກ Tab 6: ຊື່/ສີ/ໄອຄອນ + ເພີ່ມໝວດໃໝ່ (Lucky 19/07)
+  const [docCategories, setDocCategories] = useState(() => Object.fromEntries(Object.entries(DOC_CATEGORIES).map(([k, v]) => [k, { ...v }])))
+  const onUpdateCategory = (key, patch) => setDocCategories((cs) => ({ ...cs, [key]: { ...cs[key], ...patch } }))
+  const onAddCategory = (cat) => {
+    const base = (cat.label || 'new').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 10) || 'new'
+    let key = base, i = 2
+    while (docCategories[key]) { key = `${base}${i}`; i += 1 }
+    setDocCategories((cs) => ({ ...cs, [key]: cat }))
   }
   // ຄຳຂໍຄະແນນ Workboard (seed + ທີ່ສ້າງໃໝ່) — ທຸກອັນໃຊ້ detail hero ດຽວກັນ
   const [pointsReqs, setPointsReqs] = useState(() => [
@@ -416,11 +425,12 @@ export default function App() {
     ;(doc.cc || []).forEach((cid) => pushNoti(cid, `ທ່ານໄດ້ຮັບສຳເນົາ (CC) "${doc.title}"`, doc.id, 'cc'))
   }
 
-  if (view === 'create') return <SignatureFlow me={me} docSubtypes={docSubtypes} docs={docs} onCreate={onCreate} onExit={() => setView('home')} />
+  if (view === 'create') return <SignatureFlow me={me} docSubtypes={docSubtypes} docCategories={docCategories} docs={docs} onCreate={onCreate} onExit={() => setView('home')} />
   if (view === 'settings') return <Settings mySig={mySigs[me]} bio={bio} onSaveSig={onSaveSig} onDeleteSig={onDeleteSig} onToggleBio={onToggleBio}
     canManageFlow={canManageFlowSettings(me)} onOpenFlowSettings={() => setView('flowSettings')} onBack={() => setView('home')} />
-  if (view === 'flowSettings') return <FlowSettingsScreen subtypes={docSubtypes} defaultSubtypes={DEFAULT_DOC_SUBTYPES}
-    onUpdate={onUpdateSubtype} onAdd={onAddSubtype} onDelete={onDeleteSubtype} onReset={onResetSubtype} onBack={() => setView('settings')} />
+  if (view === 'flowSettings') return <FlowSettingsScreen subtypes={docSubtypes} defaultSubtypes={DEFAULT_DOC_SUBTYPES} categories={docCategories}
+    onUpdate={onUpdateSubtype} onAdd={onAddSubtype} onDelete={onDeleteSubtype} onReset={onResetSubtype}
+    onUpdateCategory={onUpdateCategory} onAddCategory={onAddCategory} onBack={() => setView('settings')} />
   if (view === 'sign') {
     const sd = docs.find((d) => d.id === signId)
     // E3/E12: placements ผูกกับ id ที่นั่งเดิม (ไม่ใช่ me เสมอไปถ้ารับมอบหมายมา) → หา seat id ให้ SignScreen ใช้จับคู่ placement

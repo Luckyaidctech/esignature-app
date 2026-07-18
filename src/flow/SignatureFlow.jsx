@@ -5,7 +5,7 @@ import Step1Input from './Step1Input.jsx'
 import Step2Place from './Step2Place.jsx'
 import Step3Send from './Step3Send.jsx'
 
-export default function SignatureFlow({ onExit, onCreate, me = 'A', docSubtypes, docs = [] }) {
+export default function SignatureFlow({ onExit, onCreate, me = 'A', docSubtypes, docCategories, docs = [] }) {
   const [screen, setScreen] = useState(1)
   const [done, setDone] = useState(false)
 
@@ -79,7 +79,7 @@ export default function SignatureFlow({ onExit, onCreate, me = 'A', docSubtypes,
     )
   }
 
-  if (screen === 1) return <Step1Input store={store} me={me} docSubtypes={docSubtypes} onNext={() => goTo(2)} onBack={onExit} />
+  if (screen === 1) return <Step1Input store={store} me={me} docSubtypes={docSubtypes} docCategories={docCategories} onNext={() => goTo(2)} onBack={onExit} />
   if (screen === 2) return <Step2Place store={store} onBack={() => goTo(1)} onNext={() => goTo(3)} />
   return <Step3Send store={store} onBack={() => goTo(2)} onSubmit={submit} />
 }

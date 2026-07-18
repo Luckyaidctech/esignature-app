@@ -83,14 +83,14 @@ function DirectoryPicker({ open, onClose, signers, onAdd, me }) {
 }
 
 // ─────────────── ແຜ່ນເລືອກປະເພດເອກະສານ (E7/E8/E10) — ໝວດ → ເອກະສານຍ່ອຍ (2 ຊັ້ນ) ───────────────
-function DocTypeSheet({ open, value, subtypes, onPick, onClose }) {
+function DocTypeSheet({ open, value, subtypes, categories = DOC_CATEGORIES, onPick, onClose }) {
   if (!open) return null
   return (
     <div className="fsheet-overlay" onClick={onClose}>
       <div className="fsheet subtype-sheet" onClick={(e) => e.stopPropagation()}>
         <p className="fsheet-title">ປະເພດເອກະສານ — ເລືອກເອກະສານຍ່ອຍ</p>
         <div className="modal-list">
-          {Object.entries(DOC_CATEGORIES).map(([catKey, cat]) => {
+          {Object.entries(categories).map(([catKey, cat]) => {
             const subs = subtypes.filter((s) => s.category === catKey)
             if (!subs.length) return null
             return (
@@ -136,13 +136,14 @@ function RoleSeg({ role, onChange }) {
   )
 }
 
-export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBack }) {
+export default function Step1Input({ store, me = 'A', docSubtypes, docCategories, onNext, onBack }) {
   const {
     title, setTitle, docType, setDocType, docSubtype, setDocSubtype, otherTypeName, setOtherTypeName, docNoPreview,
     pdfs, setPdfs, attachments, setAttachments, signers, setSigners,
   } = store
-  // ໃຊ້ subtypes ຈາກ App (Tab 6 ອາດແກ້ chain ໄວ້) — ບໍ່ມີ prop ສົ່ງມາ → fallback default
+  // ໃຊ້ subtypes/ໝວດ ຈາກ App (Tab 6 ອາດແກ້ໄວ້) — ບໍ່ມີ prop ສົ່ງມາ → fallback default
   const subtypes = docSubtypes || DEFAULT_DOC_SUBTYPES
+  const cats = docCategories || DOC_CATEGORIES
 
   const [titleCleaned, setTitleCleaned] = useState(false)
   const [loading, setLoading] = useState({ pdf: false, attach: false })
@@ -160,7 +161,7 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
   const currentSub = isOther
     ? { key: 'other', category: 'general', name: otherTypeName?.trim() || 'ອື່ນໆ (ພິມຊື່ເອງ)', prefix: 'OTH', chain: [], lockAll: false }
     : (subtypes.find((s) => s.key === docSubtype) || subtypes[0])
-  const currentCat = DOC_CATEGORIES[currentSub.category] || {}
+  const currentCat = cats[currentSub.category] || {}
   // ເສັ້ນທາງມາດຕະຖານຂອງປະເພດນີ້ (ບໍ່ຂຶ້ນກັບ mode) — ໃຊ້ຕັດສິນວ່າຄວນໂຊ toggle ຫຼືບໍ່
   const baseRoute = isOther ? { chain: [], cc: [], lockAll: false } : subtypeRoute(docSubtype, me, subtypes)
   // E7/E8/E10: ໝວດ+ຍ່ອຍ → ເສັ້ນທາງບັງຄັບ (Dynamic mode = ບໍ່ລ໋ອກ, ເລືອກເອງໝົດ)
@@ -512,7 +513,7 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
       </div>
 
       <DirectoryPicker open={pickerOpen && !lockAll && !chainLocked} onClose={() => setPickerOpen(false)} signers={signers} onAdd={addFromDirectory} me={me} />
-      <DocTypeSheet open={typeOpen} value={docSubtype} subtypes={subtypes} onPick={applySubtype} onClose={() => setTypeOpen(false)} />
+      <DocTypeSheet open={typeOpen} value={docSubtype} subtypes={subtypes} categories={cats} onPick={applySubtype} onClose={() => setTypeOpen(false)} />
       <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
     </div>
   )

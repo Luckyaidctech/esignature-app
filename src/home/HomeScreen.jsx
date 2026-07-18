@@ -765,7 +765,8 @@ function NotiCard({ n, onOpen, onOpenReq }) {
 
 // ─────────── tab 6: ມອບໝາຍ (E3/E12) — มอบไปให้คนอื่น + ได้รับมอบจากคนอื่น ───────────
 // ตัวกรองใช้ dropdown แบบเดียวกับ tab อื่นทั้ง module (Lucky 18/07: ห้ามทำ pattern แปลกแยก) — ทุก option ต้องมี seed รองรับ
-const ASSIGN_FILTERS = [{ key: 'all', label: 'ທັງໝົດ' }, { key: 'out', label: 'ມອບໄປ' }, { key: 'in', label: 'ໄດ້ຮັບມອບ' }]
+// label ຕ້ອງບອກເອງວ່າກອງຫຍັງ — "ທັງໝົດ" ລອຍໆ ຜູ້ໃຊ້ບໍ່ຮູ້ວ່າ all ຂອງຫຍັງ (Lucky 19/07)
+const ASSIGN_FILTERS = [{ key: 'all', label: 'ມອບໄປ + ໄດ້ຮັບມອບ' }, { key: 'out', label: 'ມອບໄປ' }, { key: 'in', label: 'ໄດ້ຮັບມອບ' }]
 const ASSIGN_STATUS = [{ key: 'all', label: 'ທຸກສະຖານະ' }, { key: 'wait', label: 'ຍັງບໍ່ດຳເນີນການ' }, { key: 'done', label: 'ດຳເນີນການແລ້ວ' }, { key: 'rej', label: 'ປະຕິເສດ' }]
 const seatStatusKey = (seat) => (seat.status === 'signed' ? 'done' : seat.status === 'rejected' ? 'rej' : 'wait')
 function AssignedTab({ docs, me, onOpen }) {

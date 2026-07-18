@@ -73,23 +73,84 @@ function KindPickSheet({ open, onPick, onClose }) {
   )
 }
 
-// ─────────────── ເລືອກໝວດ ───────────────
-function CategoryPickSheet({ open, onPick, onClose }) {
+// ─────────────── ເລືອກໝວດ — ໂຊສີ+ໄອຄອນຈິງ ບໍ່ແມ່ນ text ລ້ວນ (Lucky ຕິ 19/07) ───────────────
+function CategoryPickSheet({ open, categories, value, onPick, onClose }) {
   if (!open) return null
   return (
     <div className="fsheet-overlay" onClick={onClose}>
       <div className="fsheet" onClick={(e) => e.stopPropagation()}>
         <p className="fsheet-title">ເລືອກໝວດ — ກຳນົດສີ/ໄອຄອນຂອງການ໌ດ</p>
-        {Object.entries(DOC_CATEGORIES).map(([k, cat]) => (
-          <button key={k} className="sort-opt" onClick={() => onPick(k)}>{cat.label}</button>
+        {Object.entries(categories).map(([k, cat]) => (
+          <button key={k} className={`dtype-opt ${value === k ? 'on' : ''}`} onClick={() => onPick(k)}>
+            <span className="cat-pick-ic" style={{ background: cat.soft, color: cat.main }}>{Icon[cat.icon] ? Icon[cat.icon]() : <Icon.doc />}</span>
+            <div className="dtype-info"><b style={{ color: cat.main }}>{cat.label}</b></div>
+            {value === k && <Icon.check />}
+          </button>
         ))}
       </div>
     </div>
   )
 }
 
+// ─────────────── ແກ້ໄຂ/ເພີ່ມ ໝວດ (ຊື່ · ສີ · ໄອຄອນ) — Lucky ຖາມ 19/07 ວ່າແກ້ຢູ່ໃສ → ຕ້ອງມີໜ້ານີ້ ───────────────
+const CAT_COLOR_PRESETS = [
+  { main: '#64748b', soft: '#f1f5f9' }, { main: '#16a34a', soft: '#e7f6ec' }, { main: '#0d9488', soft: '#d9f2ef' },
+  { main: '#d97706', soft: '#fdf0dd' }, { main: '#7c3aed', soft: '#efe9fe' }, { main: '#0369a1', soft: '#e0f0fa' },
+  { main: '#2563eb', soft: '#e7edfb' }, { main: '#ea580c', soft: '#ffedd5' }, { main: '#0891b2', soft: '#e0f5fa' },
+  { main: '#db2777', soft: '#fce7f2' }, { main: '#a21caf', soft: '#fae8ff' }, { main: '#e23b4e', soft: '#fdeaec' },
+]
+const CAT_ICON_CHOICES = ['doc', 'money', 'cart', 'building', 'chart', 'users', 'shield', 'checkCircle', 'send', 'image', 'layers', 'mail', 'book', 'lock']
+function CategoryEditSheet({ cat, isNew, onSave, onClose }) {
+  const [draft, setDraft] = useState(cat)
+  const canSave = draft.label.trim().length > 0
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <b><Icon.layers /> {isNew ? 'ເພີ່ມໝວດໃໝ່' : `ແກ້ໄຂໝວດ: ${cat.label}`}</b>
+          <button className="icon-mini" onClick={onClose}><Icon.x /></button>
+        </div>
+        <div className="modal-list">
+          <div className="sub-edit-field">
+            <label>ຊື່ໝວດ (ພະແນກ)</label>
+            <input className="text-input" value={draft.label} onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))} placeholder="ຊື່ໝວດ" maxLength={40} />
+          </div>
+          <div className="sub-edit-field">
+            <label>ສີປະຈຳໝວດ</label>
+            <div className="cat-swatches">
+              {CAT_COLOR_PRESETS.map((c) => (
+                <button key={c.main} className={`cat-swatch ${draft.main === c.main ? 'on' : ''}`} style={{ background: c.main }}
+                  onClick={() => setDraft((d) => ({ ...d, main: c.main, soft: c.soft }))} />
+              ))}
+            </div>
+          </div>
+          <div className="sub-edit-field">
+            <label>ໄອຄອນປະຈຳໝວດ</label>
+            <div className="cat-icons">
+              {CAT_ICON_CHOICES.map((k) => (
+                <button key={k} className={`cat-icon-opt ${draft.icon === k ? 'on' : ''}`}
+                  style={draft.icon === k ? { background: draft.main, color: '#fff', borderColor: draft.main } : undefined}
+                  onClick={() => setDraft((d) => ({ ...d, icon: k }))}>{Icon[k]()}</button>
+              ))}
+            </div>
+          </div>
+          {/* ຕົວຢ່າງຜົນ — ເຫັນກ່ອນບັນທຶກ */}
+          <div className="docno-box" style={{ background: draft.soft }}>
+            <span className="docno-box-ic" style={{ background: draft.main, color: '#fff' }}>{Icon[draft.icon] ? Icon[draft.icon]() : <Icon.doc />}</span>
+            <div className="docno-box-txt"><span>ຕົວຢ່າງ</span><b style={{ color: draft.main }}>{draft.label || 'ຊື່ໝວດ'}</b></div>
+          </div>
+        </div>
+        <button className={`btn primary ${!canSave ? 'disabled' : ''}`} disabled={!canSave} style={{ width: '100%', marginTop: 8 }}
+          onClick={() => { onSave({ ...draft, label: draft.label.trim() }); onClose() }}>
+          <Icon.check /> ບັນທຶກ
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─────────────── ແກ້ໄຂ/ສ້າງ ປະເພດເອກະສານຍ່ອຍ ໜຶ່ງລາຍການ — ຊື່/prefix/ໝວດ/ລັບ + ສາຍອະນຸມັດ ───────────────
-function SubtypeEditSheet({ sub, isNew, defaultSub, onUpdate, onAdd, onDelete, onReset, onClose }) {
+function SubtypeEditSheet({ sub, isNew, defaultSub, categories = DOC_CATEGORIES, onUpdate, onAdd, onDelete, onReset, onClose }) {
   const [draft, setDraft] = useState(sub)
   const [catPickOpen, setCatPickOpen] = useState(false)
   const [kindPickIdx, setKindPickIdx] = useState(null)
@@ -103,7 +164,7 @@ function SubtypeEditSheet({ sub, isNew, defaultSub, onUpdate, onAdd, onDelete, o
   if (!sub) return null
 
   const cur = isNew ? draft : sub
-  const cat = DOC_CATEGORIES[cur.category] || {}
+  const cat = categories[cur.category] || {}
   const chain = cur.chain || []
 
   const commit = (patch) => {
@@ -249,7 +310,7 @@ function SubtypeEditSheet({ sub, isNew, defaultSub, onUpdate, onAdd, onDelete, o
           </div>
         </div>
       )}
-      <CategoryPickSheet open={catPickOpen} onPick={(k) => { commit({ category: k }); setCatPickOpen(false) }} onClose={() => setCatPickOpen(false)} />
+      <CategoryPickSheet open={catPickOpen} categories={categories} value={cur.category} onPick={(k) => { commit({ category: k }); setCatPickOpen(false) }} onClose={() => setCatPickOpen(false)} />
       <KindPickSheet open={kindPickIdx !== null} onPick={(k) => pickKind(kindPickIdx, k)} onClose={() => setKindPickIdx(null)} />
       <DeptPickSheet open={deptPickIdx !== null} onPick={pickDept} onClose={() => setDeptPickIdx(null)} />
       <PersonPickSheet open={personPickIdx !== null} onPick={pickPerson} onClose={() => setPersonPickIdx(null)} />
@@ -262,9 +323,12 @@ function SubtypeEditSheet({ sub, isNew, defaultSub, onUpdate, onAdd, onDelete, o
 }
 
 // ─────────────── Tab 6: Flow Signature Approval Setting ───────────────
-export default function FlowSettingsScreen({ subtypes, defaultSubtypes, onUpdate, onAdd, onDelete, onReset, onBack }) {
+export default function FlowSettingsScreen({ subtypes, defaultSubtypes, categories, onUpdate, onAdd, onDelete, onReset, onUpdateCategory, onAddCategory, onBack }) {
   const [openKey, setOpenKey] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [editCatKey, setEditCatKey] = useState(null) // ໝວດທີ່ກຳລັງແກ້ (ຊື່/ສີ/ໄອຄອນ)
+  const [creatingCat, setCreatingCat] = useState(false)
+  const cats = categories || DOC_CATEGORIES
   const openSub = subtypes.find((s) => s.key === openKey) || null
   const openDefault = openSub ? defaultSubtypes.find((s) => s.key === openSub.key) : null
 
@@ -272,15 +336,22 @@ export default function FlowSettingsScreen({ subtypes, defaultSubtypes, onUpdate
     <div className="app">
       <Header title="ຕັ້ງຄ່າສາຍອະນຸມັດ" subtitle="Flow Signature Approval Setting — ເພີ່ມ/ແກ້ໄຂ/ລຶບປະເພດເອກະສານ ແລະ ຜູ້ອະນຸມັດແຕ່ລະຂັ້ນ" onBack={onBack} />
       <div className="scroll">
-        <button className="btn primary" style={{ width: '100%', margin: '4px 0 12px' }} onClick={() => setCreating(true)}>
+        <button className="btn primary" style={{ width: '100%', margin: '4px 0 8px' }} onClick={() => setCreating(true)}>
           <Icon.plus /> ເພີ່ມປະເພດເອກະສານໃໝ່
         </button>
-        {Object.entries(DOC_CATEGORIES).map(([catKey, cat]) => {
+        <button className="btn ghost" style={{ width: '100%', margin: '0 0 12px' }} onClick={() => setCreatingCat(true)}>
+          <Icon.plus /> ເພີ່ມໝວດ (ພະແນກ) ໃໝ່
+        </button>
+        {Object.entries(cats).map(([catKey, cat]) => {
           const subs = subtypes.filter((s) => s.category === catKey)
-          if (!subs.length) return null
           return (
             <div className="card" key={catKey}>
-              <p className="dd-section" style={{ color: cat.main }}>{Icon[cat.icon] ? Icon[cat.icon]() : <Icon.doc />} {cat.label}</p>
+              {/* ຫົວໝວດ: ກົດປາກກາ = ແກ້ ຊື່/ສີ/ໄອຄອນ ຂອງໝວດນີ້ (Lucky 19/07) */}
+              <div className="cat-head-row">
+                <p className="dd-section" style={{ color: cat.main, margin: 0 }}>{Icon[cat.icon] ? Icon[cat.icon]() : <Icon.doc />} {cat.label}</p>
+                <button className="icon-mini" title="ແກ້ໄຂໝວດ" onClick={() => setEditCatKey(catKey)}><Icon.pen /></button>
+              </div>
+              {subs.length === 0 && <p className="muted" style={{ padding: '8px 0', margin: 0 }}>ຍັງບໍ່ມີເອກະສານຍ່ອຍໃນໝວດນີ້ — ເພີ່ມໄດ້ດ້ວຍປຸ່ມ "ເພີ່ມປະເພດເອກະສານໃໝ່"</p>}
               {subs.map((s) => {
                 const def = defaultSubtypes.find((d) => d.key === s.key)
                 const edited = def ? JSON.stringify(def) !== JSON.stringify(s) : true
@@ -298,8 +369,10 @@ export default function FlowSettingsScreen({ subtypes, defaultSubtypes, onUpdate
           )
         })}
       </div>
-      <SubtypeEditSheet sub={openSub} isNew={false} defaultSub={openDefault} onUpdate={onUpdate} onDelete={onDelete} onReset={onReset} onClose={() => setOpenKey(null)} />
-      {creating && <SubtypeEditSheet sub={BLANK_SUB} isNew onAdd={onAdd} onClose={() => setCreating(false)} />}
+      <SubtypeEditSheet sub={openSub} isNew={false} defaultSub={openDefault} categories={cats} onUpdate={onUpdate} onDelete={onDelete} onReset={onReset} onClose={() => setOpenKey(null)} />
+      {creating && <SubtypeEditSheet sub={{ ...BLANK_SUB, category: Object.keys(cats)[0] }} isNew categories={cats} onAdd={onAdd} onClose={() => setCreating(false)} />}
+      {editCatKey && <CategoryEditSheet cat={cats[editCatKey]} isNew={false} onSave={(patch) => onUpdateCategory(editCatKey, patch)} onClose={() => setEditCatKey(null)} />}
+      {creatingCat && <CategoryEditSheet cat={{ label: '', main: CAT_COLOR_PRESETS[6].main, soft: CAT_COLOR_PRESETS[6].soft, icon: 'doc' }} isNew onSave={(c) => onAddCategory(c)} onClose={() => setCreatingCat(false)} />}
     </div>
   )
 }

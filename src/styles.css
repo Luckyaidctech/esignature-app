@@ -136,26 +136,25 @@ body {
 }
 .card-invalid { border-color: var(--danger); background: #fffafb; }
 
-.stepper-card { padding: 20px 10px; }
-
-/* ── Stepper ── */
+/* ── Stepper — ຫຍໍ້ (Lucky 19/07: ເປັນແຄ່ step indicator ບໍ່ຕ້ອງກິນທີ່) ── */
+.stepper-card { padding: 10px 10px; }
 .stepper { display: flex; justify-content: space-between; align-items: flex-start; }
 .stepper-item { position: relative; display: flex; flex-direction: column; align-items: center; flex: 1; }
 .stepper-node {
-  width: 42px; height: 42px; border-radius: 50%;
+  width: 26px; height: 26px; border-radius: 50%;
   border: 2px solid var(--line); background: #fff; color: var(--muted);
-  font-weight: 700; font-size: 16px; cursor: default;
+  font-weight: 700; font-size: 12px; cursor: default;
   display: grid; place-items: center;
   transition: all .25s;
 }
-.stepper-node.active { background: var(--blue); border-color: var(--blue); color: #fff; box-shadow: 0 4px 12px rgba(31,63,181,.35); }
+.stepper-node.active { background: var(--blue); border-color: var(--blue); color: #fff; box-shadow: 0 3px 8px rgba(31,63,181,.3); }
 .stepper-node.done { background: var(--ok); border-color: var(--ok); color: #fff; cursor: pointer; }
 .stepper-node.idle { background: #f1f2f6; }
-.stepper-label { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.stepper-label { margin-top: 4px; font-size: 11px; color: var(--muted); }
 .stepper-label.active { color: var(--blue); font-weight: 700; }
 .stepper-label.done { color: var(--ok); }
 .stepper-line {
-  position: absolute; top: 21px; left: 60%; width: 80%; height: 2px;
+  position: absolute; top: 13px; left: 60%; width: 80%; height: 2px;
   background: var(--line); z-index: 0;
 }
 .stepper-line.filled { background: var(--ok); }
@@ -2223,3 +2222,15 @@ button.ac-card:active { transform: scale(.99); }
 
 /* chip ມອບໝາຍ ເທິງ doc card (E3/E12) */
 .doc-chip.swap { color: #0d9488; background: #d9f2ef; }
+
+/* ═══ Tab 6: ແກ້ໄຂ/ເພີ່ມ ໝວດ (ຊື່·ສີ·ໄອຄອນ) ═══ */
+.cat-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.cat-pick-ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; flex-shrink: 0; }
+.cat-pick-ic svg { width: 17px; height: 17px; }
+.cat-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.cat-swatch.on { border-color: #111; box-shadow: 0 0 0 2px #fff inset; transform: scale(1.12); }
+.cat-icons { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-icon-opt { width: 38px; height: 38px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer; }
+.cat-icon-opt svg { width: 18px; height: 18px; }
