@@ -47,12 +47,12 @@ function DocCard({ d, me, onOpen }) {
         <span className="doc-chip"><Icon.doc /> {d.files.length} ໄຟລ໌</span>
         {d.attachments.length > 0 && <span className="doc-chip alt"><Icon.layers /> ໄຟລ໌ແນບ {d.attachments.length}</span>}
         {d.creatorId !== me && !d.signers.some((s) => isInvolved(s, me)) && (d.cc || []).includes(me) && <span className="doc-chip cc"><Icon.users /> CC</span>}
-        {/* E3/E12: ຂໍ້ມູນມອບໝາຍ ຕ້ອງເຫັນຈາກການ໌ດທຸກ tab ລວມທັງປະຫວັດ (Lucky 18/07) */}
+        {/* E3/E12: ຂໍ້ມູນມອບໝາຍ — ຊື່ເຕັມ + ສີຕາມການ໌ດ (Lucky 19/07) */}
         {(() => {
           const out = d.signers.find((s) => s.id === me && s.assignedTo)
-          if (out) return <span className="doc-chip swap"><Icon.swap /> ມອບໃຫ້ {nameOf(out.assignedTo)}</span>
+          if (out) return <span className="doc-chip chip-wrap" style={{ color: sty.main, background: '#fff' }}><Icon.swap /> ມອບໃຫ້ {nameOf(out.assignedTo)}</span>
           const inn = d.signers.find((s) => s.assignedTo === me)
-          if (inn) return <span className="doc-chip swap"><Icon.swap /> ຮັບມອບຈາກ {nameOf(inn.id)}</span>
+          if (inn) return <span className="doc-chip chip-wrap" style={{ color: sty.main, background: '#fff' }}><Icon.swap /> ຮັບມອບຈາກ {nameOf(inn.id)}</span>
           return null
         })()}
       </div>
@@ -539,15 +539,15 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
       ? (m.status === 'esign' ? { t: m.myRole === 'approver' ? 'ລໍຖ້າອະນຸມັດ' : 'ລໍຖ້າລົງນາມ', c: 'wait' } : m.status === 'approved' ? { t: m.myRole === 'approver' ? 'ອະນຸມັດແລ້ວ' : 'ເຊັນແລ້ວ', c: 'done' } : { t: 'ປະຕິເສດ', c: 'rej' })
       : AC_STATUS[m.status] || AC_STATUS.progress
     const CardIcon = AC_ICON[m.kind] || Icon.checkCircle
-    // ຂໍລາຍເຊັນ → ສີຕາມປະເພດເອກະສານ (E11) · ປະເພດອື່ນ (ຄະແນນ...) → ສີປະຈຳປະເພດ
-    const esty = isEsign ? (DOC_TYPE_STYLE[m.docType] || DOC_TYPE_STYLE['ເອກະສານທົ່ວໄປ']) : null
-    const kc = !isEsign ? AC_CARD_COLOR[m.kind] : null
+    // Lucky ເຄາະ 19/07: ໃນ Approval ການ໌ດ ຂໍລາຍເຊັນ = ສີນ້ຳເງິນດຽວ (ພາສາສີ = ຊະນິດ request) · ປະເພດເອກະສານບອກດ້ວຍ chip ຕົວໜັງສື
+    //   ສີຕາມປະເພດເອກະສານ (E11) ໃຊ້ສະເພາະ module e-Sign — ຫ້າມເອົາ 11 ສີມາປົນໃນ Approval ອີກ
+    const kc = isEsign ? ['#1f3fb5', '#e7edfb'] : AC_CARD_COLOR[m.kind]
     // ໂຄງດຽວກັບ ReqCard → badge ຢູ່ແຖວດຽວກັບຫົວຂໍ້ ທຸກການ໌ດ (ບໍ່ແມ່ນລອຍກາງ)
     return (
       <button className="req-card" key={m.id}
-        style={esty ? { borderLeft: `4px solid ${esty.main}`, background: esty.soft } : kc ? { borderLeft: `4px solid ${kc[0]}`, background: kc[1] } : undefined}
+        style={kc ? { borderLeft: `4px solid ${kc[0]}`, background: kc[1] } : undefined}
         onClick={() => (isEsign ? onOpen(m.docId) : setAcDetail(m))}>
-        <span className={`req-card-ic ${m.kind}`} style={esty ? { background: esty.main } : undefined}><CardIcon /></span>
+        <span className={`req-card-ic ${m.kind}`}><CardIcon /></span>
         <div className="req-card-body">
           <div className="req-card-top">
             <b>{m.title}</b>
@@ -560,11 +560,11 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
           <div className="req-chips">
             <span className="req-chip">{AC_LABEL[m.kind]}</span>
             {/* ຂໍລາຍເຊັນ: ບອກປະເພດເອກະສານ ເທິງການ໌ດເລີຍ (Lucky 19/07) */}
-            {isEsign && m.docType && <span className="req-chip" style={esty ? { color: esty.main, background: '#fff' } : undefined}>{m.docType}</span>}
+            {isEsign && m.docType && <span className="req-chip" style={{ color: kc[0], background: '#fff' }}>{m.docType}</span>}
             {m.sub && <span className="req-chip hl">{m.sub}</span>}
             {m.docNo && <span className="req-chip hl">{m.docNo}</span>}
-            {/* ໃບທີ່ຮັບມອບມາ — ຕ້ອງເຫັນຈາກການ໌ດເລີຍ ບໍ່ຕ້ອງເປີດເຂົ້າໄປ (Lucky 19/07) */}
-            {m.recvFrom && <span className="req-chip" style={{ color: '#0d9488', background: '#d9f2ef' }}><Icon.swap /> ຮັບມອບຈາກ {nameOf(m.recvFrom)}</span>}
+            {/* ໃບທີ່ຮັບມອບມາ — ຊື່ເຕັມ ຫ້າມຕັດ + ສີຕາມການ໌ດ (Lucky 19/07) */}
+            {m.recvFrom && <span className="req-chip chip-wrap" style={{ color: kc[0], background: '#fff' }}><Icon.swap /> ຮັບມອບຈາກ {nameOf(m.recvFrom)}</span>}
           </div>
           {/* ຜູ້ຂໍ (ຜູ້ສ້າງ request) — ໂຊທຸກປະເພດ ຮວມທັງ ຂໍລາຍເຊັນ (ລາຍລະອຽດຜູ້ເຊັນ ຢູ່ໜ້າ detail) */}
           {m.byId && (
@@ -866,7 +866,8 @@ function AssignedTab({ docs, me, onOpen }) {
               </div>
               <span className="req-card-when"><Icon.calendar /> {d.date}{d.docNo && <><Icon.doc /> {d.docNo}</>}</span>
               <div className="req-chips">
-                <span className="req-chip hl">{isOut ? `ມອບໃຫ້ ${nameOf(counterpart)}` : `ຮັບມອບຈາກ ${nameOf(counterpart)}`}</span>
+                {/* ຊື່ເຕັມ + ສີຕາມການ໌ດ (Lucky 19/07) */}
+                <span className="req-chip chip-wrap" style={{ color: sty.main, background: '#fff' }}>{isOut ? `ມອບໃຫ້ ${nameOf(counterpart)}` : `ຮັບມອບຈາກ ${nameOf(counterpart)}`}</span>
                 <span className="req-chip">{actLabel}ແທນ</span>
               </div>
             </div>

@@ -2265,3 +2265,6 @@ button.ac-card:active { transform: scale(.99); }
 .assign-pill:hover { background: var(--blue-soft); }
 .assign-pill.danger { color: var(--danger); border-color: #f3c1c8; }
 .assign-pill.danger:hover { background: var(--danger-soft); }
+
+/* chip ທີ່ມີຊື່ຄົນ — ຫ້າມຕັດຊື່ ໃຫ້ wrap ລົງແຖວ (Lucky 19/07) */
+.chip-wrap { white-space: normal !important; text-align: left; line-height: 1.35; max-width: 100%; }
