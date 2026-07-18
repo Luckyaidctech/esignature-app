@@ -418,7 +418,7 @@ export default function Step1Input({ store, me = 'A', docSubtypes, docCategories
             </div>
           )}
           {!dynamicMode && !currentSub.lockAll && route.chain.length === 0 && (
-            <p className="dtype-note"><Icon.warn /> ປະເພດນີ້ຍັງບໍ່ໄດ້ຕັ້ງຄ່າເສັ້ນທາງມາດຕະຖານ (Tab 6) — ກະລຸນາເລືອກ "ເລືອກຜູ້ລົງນາມເອງ"</p>
+            <p className="dtype-note"><Icon.warn /> ປະເພດນີ້ຍັງບໍ່ໄດ້ຕັ້ງຄ່າເສັ້ນທາງມາດຕະຖານ — ກະລຸນາເລືອກ "ເລືອກຜູ້ລົງນາມເອງ"</p>
           )}
           {showErrors && !valid.signer && !dynamicMode && <span className="err-text">ຍັງບໍ່ມີຜູ້ລົງນາມ</span>}
         </div>
