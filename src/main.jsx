@@ -2,11 +2,13 @@ import { useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import VerifyScreen from './flow/VerifyScreen.jsx'
-// Noto Sans Lao ຝັງໃນ bundle (ບໍ່ອີງ font ເຄື່ອງຜູ້ໃຊ້) — ທຸກເຄື່ອງເຫັນໂຕໜັງສືຄືກັນ
-import '@fontsource/noto-sans-lao/400.css'
-import '@fontsource/noto-sans-lao/600.css'
-import '@fontsource/noto-sans-lao/700.css'
-import '@fontsource/noto-sans-lao/800.css'
+// Noto Sans Lao Looped (ຕົວມີຫົວ — ແບບທີ່ຄົນລາວຄຸ້ນເຄີຍ) ຝັງໃນ bundle — ທຸກເຄື່ອງເຫັນໂຕໜັງສືຄືກັນ
+// ⚠ ຫ້າມໃຊ້ Noto Sans Lao ທຳມະດາ (ຕົວບໍ່ມີຫົວ) — Lucky ຕິ 18/07 ວ່າໂຕໜັງສືປ່ຽນຮູບຫຼາຍບ່ອນ
+import '@fontsource/noto-sans-lao-looped/400.css'
+import '@fontsource/noto-sans-lao-looped/500.css'
+import '@fontsource/noto-sans-lao-looped/600.css'
+import '@fontsource/noto-sans-lao-looped/700.css'
+import '@fontsource/noto-sans-lao-looped/800.css'
 import './styles.css'
 
 // iPhone 17 Pro Max device frame + status bar

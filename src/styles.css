@@ -17,7 +17,7 @@
 body {
   margin: 0;
   background: radial-gradient(circle at 50% -10%, #3b4257, #232838 45%, #14161f);
-  font-family: 'Noto Sans Lao', 'Leelawadee UI', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Noto Sans Lao Looped', 'Lao UI', 'Noto Sans Lao', 'Leelawadee UI', 'Segoe UI', system-ui, sans-serif;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   height: 100vh;

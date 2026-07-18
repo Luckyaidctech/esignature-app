@@ -417,18 +417,20 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
           <FileList items={attachments} onRemove={(id) => setAttachments((a) => a.filter((x) => x.id !== id))} onView={viewFile} />
         </div>
 
-        {/* ── ຜູ້ລົງນາມ + CC ── */}
+        {/* ── ຜູ້ລົງນາມ + CC ──
+            ⚠ ໂໝດເສັ້ນທາງລ໋ອກ (No-Dynamic/ເອກະສານລັບ): ຫ້າມ render ລາຍຊື່ chain ຊ້ຳຢູ່ນີ້ —
+            ເສັ້ນທາງສະແດງຢູ່ກ່ອງ "ປະເພດເອກະສານ" ບ່ອນດຽວເທົ່ານັ້ນ (Lucky ສັ່ງ 18/07: ຫ້າມມີ 2 ບ່ອນ) */}
         <div className={`card ${showErrors && !valid.signer ? 'card-invalid' : ''}`}>
           <SectionHead icon={<Icon.addUser />} title="ຜູ້ລົງນາມ & ຮັບສຳເນົາ" sub={lockAll ? 'ເອກະສານລັບ — ຜູ້ອຳນວຍການເຊັນຄົນດຽວ' : chainLocked ? 'ໃຊ້ເສັ້ນທາງມາດຕະຖານ — ລ໋ອກໄວ້' : 'ເລືອກຄົນຈາກລາຍຊື່'} />
           {lockAll ? (
-            <p className="dtype-lockmsg"><Icon.lock /> ເອກະສານລັບ ສົ່ງກົງຫາຜູ້ອຳນວຍການເທົ່ານັ້ນ — ເພີ່ມຜູ້ເຊັນ/CC ບໍ່ໄດ້ ເນື້ອໃນເຫັນສະເພາະຜູ້ສ້າງ ແລະ ຜູ້ເຊັນ</p>
+            <p className="dtype-lockmsg"><Icon.lock /> ເອກະສານລັບ ສົ່ງກົງຫາຜູ້ອຳນວຍການເທົ່ານັ້ນ — ເພີ່ມຜູ້ເຊັນ/CC ບໍ່ໄດ້ · ເສັ້ນທາງສະແດງຢູ່ກ່ອງ "ປະເພດເອກະສານ" ເທິງສຸດ</p>
           ) : chainLocked ? (
-            <p className="dtype-lockmsg"><Icon.lock /> ໃຊ້ເສັ້ນທາງມາດຕະຖານ — ຜູ້ລົງນາມ/ອະນຸມັດຖືກລ໋ອກໄວ້ຕາມປະເພດເອກະສານ ເພີ່ມຄົນອື່ນເອງບໍ່ໄດ້ (ສະຫຼັບເປັນ "ເລືອກຜູ້ລົງນາມເອງ" ຖ້າຕ້ອງການເພີ່ມ)</p>
+            <p className="dtype-lockmsg"><Icon.lock /> ຜູ້ລົງນາມ/ອະນຸມັດ ຖືກລ໋ອກຕາມເສັ້ນທາງມາດຕະຖານ — ເບິ່ງລຳດັບໄດ້ທີ່ກ່ອງ "ປະເພດເອກະສານ" ເທິງສຸດ (ຢາກເລືອກເອງ ໃຫ້ສະຫຼັບເປັນ "ເລືອກຜູ້ລົງນາມເອງ")</p>
           ) : (
             <button className="add-btn" onClick={() => setPickerOpen(true)}><Icon.book /> ເພີ່ມຈາກລາຍຊື່</button>
           )}
 
-          {signatories.length > 0 && (
+          {!(lockAll || chainLocked) && signatories.length > 0 && (
             <>
               <div className="order-head">
                 <span className="order-title"><Icon.layers /> ລຳດັບການລົງນາມ</span>
@@ -478,8 +480,8 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
             </>
           )}
 
-          {/* ── CC ── */}
-          {ccList.length > 0 && (
+          {/* ── CC ── (ໂໝດລ໋ອກ: CC ອັດຕະໂນມັດສະແດງຢູ່ preview ກ່ອງປະເພດແລ້ວ ບໍ່ຊ້ຳຢູ່ນີ້) */}
+          {!(lockAll || chainLocked) && ccList.length > 0 && (
             <div className="cc-block">
               <div className="cc-head"><Icon.mail /> <b>ຮັບສຳເນົາ (CC)</b> <i>· ບໍ່ຕ້ອງເຊັນ</i></div>
               {ccList.map((s) => (
