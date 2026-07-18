@@ -235,10 +235,15 @@ function SubtypeEditSheet({ sub, isNew, defaultSub, categories = DOC_CATEGORIES,
             <label>Prefix (ໃຊ້ໃນເລກທີເອກະສານ)</label>
             <input className="text-input" value={cur.prefix} onChange={(e) => commit({ prefix: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6) })} placeholder="EXP" maxLength={6} />
           </div>
-          <button className="set-row set-row-link sub-edit-field" onClick={() => setCatPickOpen(true)}>
-            <div className="set-row-info"><label>ໝວດ (ກຳນົດສີ/ໄອຄອນ)</label><b style={{ color: cat.main }}>{cat.label || '—'}</b></div>
-            <Icon.chevron />
-          </button>
+          {/* ແຖວເລືອກໝວດ — ກ່ອງແບບດຽວກັບ Step 1 (ໄອຄອນສີ + ຊື່ + chevron), Lucky ຕິ UI ເກົ່າ 19/07 */}
+          <div className="sub-edit-field">
+            <label>ໝວດ (ກຳນົດສີ/ໄອຄອນ)</label>
+            <button className="dtype-btn" onClick={() => setCatPickOpen(true)}>
+              <span className="dtype-btn-ic" style={{ background: cat.soft, color: cat.main }}>{Icon[cat.icon] ? Icon[cat.icon]() : <Icon.doc />}</span>
+              <div className="dtype-btn-info"><b style={{ color: cat.main }}>{cat.label || 'ເລືອກໝວດ'}</b></div>
+              <Icon.chevron />
+            </button>
+          </div>
           <div className="set-row sub-edit-field">
             <div className="set-row-info"><b>ເອກະສານລັບ</b><span>ຫ້າມເພີ່ມຄົນອື່ນ/CC — ສົ່ງກົງຫາຜູ້ອຳນວຍການເທົ່ານັ້ນ</span></div>
             <button className={`toggle ${cur.lockAll ? 'on' : ''}`} onClick={() => commit({ lockAll: !cur.lockAll })}><span className="toggle-dot" /></button>

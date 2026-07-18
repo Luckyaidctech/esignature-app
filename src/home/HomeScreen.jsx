@@ -482,7 +482,7 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
     .map((d) => {
       const mine = d.signers.find((s) => actingId(s) === me)
       const status = mine.status === 'signed' ? 'approved' : mine.status === 'rejected' ? 'rejected' : 'esign'
-      return { kind: 'esign', id: d.id, title: d.title, byId: d.creatorId, by: nameOf(d.creatorId), date: d.date, status, docId: d.id, docNo: d.docNo, docType: docTypeOf(d), signers: d.signers }
+      return { kind: 'esign', id: d.id, title: d.title, byId: d.creatorId, by: nameOf(d.creatorId), date: d.date, status, myRole: mine.role, docId: d.id, docNo: d.docNo, docType: docTypeOf(d), signers: d.signers }
     })
   const esignPending = esignItems.filter((i) => i.status === 'esign').length // badge = ທີ່ລໍຖ້າ me ເຊັນ
   // ⚠ ຄະແນນ: ຍັງໂຊຂອງຕົນເອງຢູ່ — ເພາະໂມດູນ "ຄຳຂໍ" ຍັງບໍ່ມີ tab ຄະແນນ ໃຫ້ມັນຢູ່
@@ -521,7 +521,8 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
     if (KIND_META[m.kind]) return <ReqCard key={m.id} r={m} kind={m.kind} showBy onOpen={() => setAcDetail(m)} />
     const isEsign = m.kind === 'esign'
     const st = isEsign
-      ? (m.status === 'esign' ? { t: 'ລໍຖ້າລົງນາມ', c: 'wait' } : m.status === 'approved' ? { t: 'ເຊັນແລ້ວ', c: 'done' } : { t: 'ປະຕິເສດ', c: 'rej' })
+      // badge ບອກຕາມບົດບາດຈິງ: approver = ອະນຸມັດ / signer = ລົງນາມ (Take ຮັບມອບອະນຸມັດ ແຕ່ເຫັນ "ລໍຖ້າລົງນາມ" → ສັບສົນ, Lucky 19/07)
+      ? (m.status === 'esign' ? { t: m.myRole === 'approver' ? 'ລໍຖ້າອະນຸມັດ' : 'ລໍຖ້າລົງນາມ', c: 'wait' } : m.status === 'approved' ? { t: m.myRole === 'approver' ? 'ອະນຸມັດແລ້ວ' : 'ເຊັນແລ້ວ', c: 'done' } : { t: 'ປະຕິເສດ', c: 'rej' })
       : AC_STATUS[m.status] || AC_STATUS.progress
     const CardIcon = AC_ICON[m.kind] || Icon.checkCircle
     // ຂໍລາຍເຊັນ → ໃຊ້ສີຕາມປະເພດເອກະສານ (E11) ໃຫ້ກົງກັບການ໌ດໃນໂມດູນ e-Sign
@@ -765,13 +766,18 @@ function NotiCard({ n, onOpen, onOpenReq }) {
 
 // ─────────── tab 6: ມອບໝາຍ (E3/E12) — มอบไปให้คนอื่น + ได้รับมอบจากคนอื่น ───────────
 // ตัวกรองใช้ dropdown แบบเดียวกับ tab อื่นทั้ง module (Lucky 18/07: ห้ามทำ pattern แปลกแยก) — ทุก option ต้องมี seed รองรับ
-// label ຕ້ອງບອກເອງວ່າກອງຫຍັງ — "ທັງໝົດ" ລອຍໆ ຜູ້ໃຊ້ບໍ່ຮູ້ວ່າ all ຂອງຫຍັງ (Lucky 19/07)
-const ASSIGN_FILTERS = [{ key: 'all', label: 'ມອບໄປ + ໄດ້ຮັບມອບ' }, { key: 'out', label: 'ມອບໄປ' }, { key: 'in', label: 'ໄດ້ຮັບມອບ' }]
+// ຕົວກອງຄົບຊຸດຄືກັນກັບ tab ອື່ນ: ທິດທາງ → ສະຖານະ → ໄລຍະເວລາ → ຈັດລຳດັບ (Lucky 19/07)
+const ASSIGN_FILTERS = [{ key: 'all', label: 'ທິດທາງທັງໝົດ' }, { key: 'out', label: 'ມອບໄປ' }, { key: 'in', label: 'ໄດ້ຮັບມອບ' }]
 const ASSIGN_STATUS = [{ key: 'all', label: 'ທຸກສະຖານະ' }, { key: 'wait', label: 'ຍັງບໍ່ດຳເນີນການ' }, { key: 'done', label: 'ດຳເນີນການແລ້ວ' }, { key: 'rej', label: 'ປະຕິເສດ' }]
+const ASSIGN_SORTS = [{ key: 'recent', label: 'ມອບລ່າສຸດກ່ອນ' }, { key: 'oldest', label: 'ມອບເກົ່າສຸດກ່ອນ' }, { key: 'az', label: 'ຊື່ເອກະສານ A-Z' }, { key: 'za', label: 'ຊື່ເອກະສານ Z-A' }]
 const seatStatusKey = (seat) => (seat.status === 'signed' ? 'done' : seat.status === 'rejected' ? 'rej' : 'wait')
 function AssignedTab({ docs, me, onOpen }) {
   const [filter, setFilter] = useState('all')
   const [stFilter, setStFilter] = useState('all')
+  const [time, setTime] = useState('all')
+  const [range, setRange] = useState({ from: '', to: '' })
+  const [sort, setSort] = useState('recent')
+  const REF = new Date().getDate() // ໄລຍະເວລາ ນັບຈາກມື້ນີ້ຈິງ (realtime — ຄືກັບ DocList)
   // ໃບໜຶ່ງອາດມີທັງ "ມອບໄປ" ແລະ "ໄດ້ຮັບມອບ" — ແຍກເປັນ entry ຄົນລະອັນ ໃຫ້ສະຖານະຕົງກັບທີ່ນັ່ງນັ້ນຈິງ
   const entries = []
   docs.forEach((d) => {
@@ -780,17 +786,36 @@ function AssignedTab({ docs, me, onOpen }) {
       if (s.assignedTo === me) entries.push({ d, seat: s, dir: 'in' })
     })
   })
+  const inTime = (d) => {
+    if (time === '7d') return REF - d.ts <= 7
+    if (time === '30d') return REF - d.ts <= 30
+    if (time === 'custom' && (range.from || range.to)) {
+      const t = parseDMY(d.date)
+      if (range.from && t < new Date(range.from)) return false
+      if (range.to && t > new Date(range.to)) return false
+    }
+    return true
+  }
   const byDir = (k) => (k === 'all' ? entries : entries.filter((e) => e.dir === k))
-  // ຮຽງແບບດຽວກັບ list ອື່ນທັງແອັບ: ຄ້າງກ່ອນ + ໃໝ່ສຸດຂຶ້ນກ່ອນ
-  const list = byDir(filter).filter((e) => stFilter === 'all' || seatStatusKey(e.seat) === stFilter)
-    .sort((a, b) => ((seatStatusKey(a.seat) === 'wait' ? 0 : 1) - (seatStatusKey(b.seat) === 'wait' ? 0 : 1)) || (b.d.ts - a.d.ts))
+  const list = byDir(filter)
+    .filter((e) => (stFilter === 'all' || seatStatusKey(e.seat) === stFilter) && inTime(e.d))
+    .sort((a, b) => {
+      if (sort === 'oldest') return a.d.ts - b.d.ts
+      if (sort === 'az') return a.d.title.localeCompare(b.d.title, 'lo')
+      if (sort === 'za') return b.d.title.localeCompare(a.d.title, 'lo')
+      // recent (default): ຄ້າງກ່ອນ + ໃໝ່ສຸດຂຶ້ນກ່ອນ — ຄືກັບ list ອື່ນທັງແອັບ
+      return ((seatStatusKey(a.seat) === 'wait' ? 0 : 1) - (seatStatusKey(b.seat) === 'wait' ? 0 : 1)) || (b.d.ts - a.d.ts)
+    })
   const dirLabel = ASSIGN_FILTERS.find((f) => f.key === filter).label
   const stLabel = ASSIGN_STATUS.find((f) => f.key === stFilter).label
+  const sortLabel = ASSIGN_SORTS.find((f) => f.key === sort).label
   return (
     <>
       <div className="home-filters">
         <FilterDropdown btnLabel={`${dirLabel} (${byDir(filter).length})`} title="ທິດທາງ" options={ASSIGN_FILTERS} value={filter} onChange={setFilter} />
         <FilterDropdown btnLabel={`${stLabel} (${list.length})`} title="ສະຖານະ" options={ASSIGN_STATUS} value={stFilter} onChange={setStFilter} />
+        <TimeDropdown value={time} onChange={setTime} range={range} setRange={setRange} />
+        <FilterDropdown btnLabel={sortLabel} title="ຈັດລຳດັບ" options={ASSIGN_SORTS} value={sort} onChange={setSort} />
       </div>
       {list.length === 0 ? <p className="empty-list">ບໍ່ມີການມອບໝາຍໃນເງື່ອນໄຂນີ້</p> : list.map(({ d, seat, dir }) => {
         const isOut = dir === 'out'
