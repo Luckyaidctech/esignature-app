@@ -2220,3 +2220,6 @@ button.ac-card:active { transform: scale(.99); }
 
 /* ຕົວກອງແທັບ ມອບໝາຍ — wrap ລົງແຖວໃໝ່ ບໍ່ scroll ຂ້າງ ໃຫ້ເຫັນທຸກປຸ່ມ */
 .req-sf.wrap { flex-wrap: wrap; overflow-x: visible; row-gap: 6px; margin-bottom: 4px; }
+
+/* chip ມອບໝາຍ ເທິງ doc card (E3/E12) */
+.doc-chip.swap { color: #0d9488; background: #d9f2ef; }

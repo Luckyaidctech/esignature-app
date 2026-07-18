@@ -47,6 +47,14 @@ function DocCard({ d, me, onOpen }) {
         <span className="doc-chip"><Icon.doc /> {d.files.length} ໄຟລ໌</span>
         {d.attachments.length > 0 && <span className="doc-chip alt"><Icon.layers /> ໄຟລ໌ແນບ {d.attachments.length}</span>}
         {d.creatorId !== me && !d.signers.some((s) => isInvolved(s, me)) && (d.cc || []).includes(me) && <span className="doc-chip cc"><Icon.users /> CC</span>}
+        {/* E3/E12: ຂໍ້ມູນມອບໝາຍ ຕ້ອງເຫັນຈາກການ໌ດທຸກ tab ລວມທັງປະຫວັດ (Lucky 18/07) */}
+        {(() => {
+          const out = d.signers.find((s) => s.id === me && s.assignedTo)
+          if (out) return <span className="doc-chip swap"><Icon.swap /> ມອບໃຫ້ {nameOf(out.assignedTo)}</span>
+          const inn = d.signers.find((s) => s.assignedTo === me)
+          if (inn) return <span className="doc-chip swap"><Icon.swap /> ຮັບມອບຈາກ {nameOf(inn.id)}</span>
+          return null
+        })()}
       </div>
       <p className="doc-prog-label">ດຳເນີນການແລ້ວ {done}/{total}</p>
       <div className="doc-prog"><span className="doc-prog-fill" style={{ width: `${pct}%` }} /></div>
@@ -756,9 +764,9 @@ function NotiCard({ n, onOpen, onOpenReq }) {
 }
 
 // ─────────── tab 6: ມອບໝາຍ (E3/E12) — มอบไปให้คนอื่น + ได้รับมอบจากคนอื่น ───────────
-// ตัวกรอง 2 ชั้น (Lucky 18/07): ทิศทาง (มอบไป/ได้รับมอบ) × สถานะ (ทำแล้วหรือยัง) — ทุก option ต้องมี seed รองรับ
-const ASSIGN_FILTERS = [{ k: 'all', t: 'ທັງໝົດ' }, { k: 'out', t: 'ມອບໄປ' }, { k: 'in', t: 'ໄດ້ຮັບມອບ' }]
-const ASSIGN_STATUS = [{ k: 'all', t: 'ທຸກສະຖານະ' }, { k: 'wait', t: 'ຍັງບໍ່ດຳເນີນການ' }, { k: 'done', t: 'ດຳເນີນການແລ້ວ' }, { k: 'rej', t: 'ປະຕິເສດ' }]
+// ตัวกรองใช้ dropdown แบบเดียวกับ tab อื่นทั้ง module (Lucky 18/07: ห้ามทำ pattern แปลกแยก) — ทุก option ต้องมี seed รองรับ
+const ASSIGN_FILTERS = [{ key: 'all', label: 'ທັງໝົດ' }, { key: 'out', label: 'ມອບໄປ' }, { key: 'in', label: 'ໄດ້ຮັບມອບ' }]
+const ASSIGN_STATUS = [{ key: 'all', label: 'ທຸກສະຖານະ' }, { key: 'wait', label: 'ຍັງບໍ່ດຳເນີນການ' }, { key: 'done', label: 'ດຳເນີນການແລ້ວ' }, { key: 'rej', label: 'ປະຕິເສດ' }]
 const seatStatusKey = (seat) => (seat.status === 'signed' ? 'done' : seat.status === 'rejected' ? 'rej' : 'wait')
 function AssignedTab({ docs, me, onOpen }) {
   const [filter, setFilter] = useState('all')
@@ -775,19 +783,13 @@ function AssignedTab({ docs, me, onOpen }) {
   // ຮຽງແບບດຽວກັບ list ອື່ນທັງແອັບ: ຄ້າງກ່ອນ + ໃໝ່ສຸດຂຶ້ນກ່ອນ
   const list = byDir(filter).filter((e) => stFilter === 'all' || seatStatusKey(e.seat) === stFilter)
     .sort((a, b) => ((seatStatusKey(a.seat) === 'wait' ? 0 : 1) - (seatStatusKey(b.seat) === 'wait' ? 0 : 1)) || (b.d.ts - a.d.ts))
-  const stCount = (k) => byDir(filter).filter((e) => k === 'all' || seatStatusKey(e.seat) === k).length
+  const dirLabel = ASSIGN_FILTERS.find((f) => f.key === filter).label
+  const stLabel = ASSIGN_STATUS.find((f) => f.key === stFilter).label
   return (
     <>
-      {/* wrap: ຕົວກອງ 2 ແຖວຕ້ອງເຫັນຄົບທຸກປຸ່ມ ບໍ່ຕ້ອງເລື່ອນຂ້າງ (Lucky ຕິ 18/07 ປຸ່ມສະຖານະຖືກຕັດ) */}
-      <div className="req-sf wrap">
-        {ASSIGN_FILTERS.map((f) => (
-          <button key={f.k} className={`req-sf-chip ${filter === f.k ? 'on' : ''}`} onClick={() => setFilter(f.k)}>{f.t} ({byDir(f.k).length})</button>
-        ))}
-      </div>
-      <div className="req-sf wrap">
-        {ASSIGN_STATUS.map((f) => (
-          <button key={f.k} className={`req-sf-chip ${stFilter === f.k ? 'on' : ''}`} onClick={() => setStFilter(f.k)}>{f.t} ({stCount(f.k)})</button>
-        ))}
+      <div className="home-filters">
+        <FilterDropdown btnLabel={`${dirLabel} (${byDir(filter).length})`} title="ທິດທາງ" options={ASSIGN_FILTERS} value={filter} onChange={setFilter} />
+        <FilterDropdown btnLabel={`${stLabel} (${list.length})`} title="ສະຖານະ" options={ASSIGN_STATUS} value={stFilter} onChange={setStFilter} />
       </div>
       {list.length === 0 ? <p className="empty-list">ບໍ່ມີການມອບໝາຍໃນເງື່ອນໄຂນີ້</p> : list.map(({ d, seat, dir }) => {
         const isOut = dir === 'out'

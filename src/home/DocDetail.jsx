@@ -342,8 +342,9 @@ export default function DocDetail({ doc: d, me, onBack, onReject, onSign, onAppr
             })}
           </div>
           {/* E3/E12: มอบหมายให้คนอื่นเซ็น/อนุมัติแทน — เฉพาะที่นั่งของตัวเอง, ไม่ใช่เอกสารลับ */}
+          {/* ປຸ່ມມອບໝາຍ ຕ້ອງເຫັນຊັດ (Lucky 18/07: ລິ້ງນ້ອຍຫາບໍ່ເຈິ) */}
           {canAssign && (
-            <button className="dd-cmt-reply" style={{ marginTop: 10 }} onClick={() => setAssignOpen(true)}>
+            <button className="btn ghost" style={{ width: '100%', marginTop: 10 }} onClick={() => setAssignOpen(true)}>
               <Icon.swap /> ມອບໝາຍໃຫ້ຄົນອື່ນ{mySig.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'}ແທນ
             </button>
           )}

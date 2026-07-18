@@ -151,8 +151,9 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
   const [typeOpen, setTypeOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
   const [dragId, setDragId] = useState(null)
-  // E7/E10: Dynamic = ເລືອກຜູ້ລົງນາມເອງ · No-Dynamic (default) = ໃຊ້ເສັ້ນທາງມາດຕະຖານຂອງເອກະສານຍ່ອຍ
-  const [dynamicMode, setDynamicMode] = useState(false)
+  // E7/E10: Direct (ໃຊ້ເສັ້ນທາງມາດຕະຖານ ຈາກ Tab 6) ↔ Dynamic (ເລືອກຜູ້ລົງນາມເອງ)
+  // ຄ່າເລີ່ມຕົ້ນ: ມີຂັ້ນ lock ຄ້າງໃນ signers = Direct · ນອກນັ້ນ Dynamic (ປະເພດເລີ່ມຕົ້ນ GEN ບໍ່ມີເສັ້ນທາງ config)
+  const [dynamicMode, setDynamicMode] = useState(() => !signers.some((s) => s.locked))
 
   // E10: "ອື່ນໆ" = ປະເພດພິມຊື່ເອງ — ບໍ່ຢູ່ໃນ catalog, ບໍ່ມີເສັ້ນທາງບັງຄັບ, prefix OTH
   const isOther = docSubtype === 'other'
@@ -165,8 +166,6 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
   // E7/E8/E10: ໝວດ+ຍ່ອຍ → ເສັ້ນທາງບັງຄັບ (Dynamic mode = ບໍ່ລ໋ອກ, ເລືອກເອງໝົດ)
   const route = dynamicMode ? { chain: [], cc: [], lockAll: false } : baseRoute
   const lockAll = route.lockAll
-  // No-Dynamic ล็อกการเพิ่มคนเองก็ต่อเมื่อจริงๆ มีเส้นทางบังคับ — ประเภทที่ chain ว่าง (ทั่วไป/บันทึก/เชิญประชุม) ไม่มีอะไรให้ล็อก เพิ่มเองได้เสมอ
-  const chainLocked = !lockAll && !dynamicMode && route.chain.length > 0
 
   const pdfInput = useRef(null)
   const attachInput = useRef(null)
@@ -226,17 +225,20 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
   const applySubtype = (key) => {
     setDocSubtype(key)
     if (key === 'other') {
-      // E10 "ອື່ນໆ": ບໍ່ມີເສັ້ນທາງບັງຄັບ — ລ້າງຂັ້ນ lock ເກົ່າອອກ ໃຫ້ເລືອກຄົນເອງທັງໝົດ
+      // E10 "ອື່ນໆ": ບໍ່ມີເສັ້ນທາງ config — ບັງຄັບ Dynamic, ລ້າງຂັ້ນ lock ເກົ່າອອກ
       setDocType('ເອກະສານທົ່ວໄປ')
+      setDynamicMode(true)
       setSigners((prev) => rebuild(prev.filter((s) => !s.locked)))
     } else {
       const sub = subtypes.find((s) => s.key === key)
       // legacyTypeOfSubtype: subtype ລັບ (lockAll) → "ເອກະສານລັບ" ສະເໝີ (ກັນ visibility/@mention ຮົ່ວ)
       setDocType(legacyTypeOfSubtype(sub))
-      // ເອກະສານລັບ (lockAll): ບັງຄັບ No-Dynamic ສະເໝີ — ຫ້າມຜູ້ໃຊ້ເລືອກຄົນເອງ
-      if (sub?.lockAll) setDynamicMode(false)
-      if (dynamicMode && !sub?.lockAll) setSigners((prev) => rebuild(prev.filter((s) => !s.locked)))
-      else applyLockedChain(subtypeRoute(key, me, subtypes))
+      // ຄ່າເລີ່ມຕົ້ນຂອງ mode ຕາມປະເພດ: ມີເສັ້ນທາງ config → Direct · ບໍ່ມີ → Dynamic · ເອກະສານລັບ → Direct ສະເໝີ
+      const r = subtypeRoute(key, me, subtypes)
+      const dyn = sub?.lockAll ? false : r.chain.length === 0
+      setDynamicMode(dyn)
+      if (dyn) setSigners((prev) => rebuild(prev.filter((s) => !s.locked)))
+      else applyLockedChain(r)
     }
     setShowErrors(false)
     setTypeOpen(false)
@@ -347,32 +349,6 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
               <b style={{ color: currentCat.main }}>{docNoPreview}</b>
             </div>
           </div>
-          {/* Dynamic ↔ No-Dynamic — ໂຊສະເໝີ (Lucky 18/07: ບ່ອນເລືອກຕ້ອງບໍ່ຫາຍ) · ຍົກເວັ້ນເອກະສານລັບ ບັງຄັບ No-Dynamic */}
-          {!currentSub.lockAll && (
-            <div className="seg" style={{ marginTop: 10 }}>
-              <button className={`seg-btn ${!dynamicMode ? 'on approver' : ''}`} onClick={() => toggleDynamic(false)}>ໃຊ້ເສັ້ນທາງມາດຕະຖານ</button>
-              <button className={`seg-btn ${dynamicMode ? 'on signer' : ''}`} onClick={() => toggleDynamic(true)}>ເລືອກຜູ້ລົງນາມເອງ</button>
-            </div>
-          )}
-          {/* ຜົນຂອງທາງເລືອກ ຕ້ອງເຫັນທັນທີຢູ່ນີ້ — ບໍ່ຕ້ອງເລື່ອນລົງໄປຫາ (Lucky review 18/07) */}
-          {!dynamicMode && route.chain.length > 0 && (
-            <div className="route-preview">
-              <p className="route-preview-head"><Icon.lock /> ເສັ້ນທາງມາດຕະຖານ {route.chain.length} ຂັ້ນ — ລ໋ອກອັດຕະໂນມັດ{lockAll ? ' · ຫ້າມເພີ່ມຜູ້ອື່ນ ແລະ CC' : ''}</p>
-              {route.chain.map((p, i) => (
-                <div className="route-step" key={p.id}>
-                  <span className="route-step-n">{i + 1}</span>
-                  <b>{p.name}</b>
-                  <span className="route-step-role">{p.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'}</span>
-                </div>
-              ))}
-              {route.cc.length > 0 && (
-                <p className="route-preview-cc"><Icon.users /> CC ອັດຕະໂນມັດ: {route.cc.map((c) => c.name).join(', ')}</p>
-              )}
-            </div>
-          )}
-          {dynamicMode && (
-            <p className="dtype-note free"><Icon.pen /> ເລືອກຜູ້ລົງນາມເອງ — ເພີ່ມຄົນທີ່ຫ້ອງ "ຜູ້ລົງນາມ &amp; ຮັບສຳເນົາ" ຂ້າງລຸ່ມ</p>
-          )}
         </div>
 
         {/* ── ຫົວຂໍ້ການເຊັນ ── */}
@@ -414,20 +390,45 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
           <FileList items={attachments} onRemove={(id) => setAttachments((a) => a.filter((x) => x.id !== id))} onView={viewFile} />
         </div>
 
-        {/* ── ຜູ້ລົງນາມ + CC ──
-            ⚠ ໂໝດເສັ້ນທາງລ໋ອກ (No-Dynamic/ເອກະສານລັບ): ຫ້າມ render ລາຍຊື່ chain ຊ້ຳຢູ່ນີ້ —
-            ເສັ້ນທາງສະແດງຢູ່ກ່ອງ "ປະເພດເອກະສານ" ບ່ອນດຽວເທົ່ານັ້ນ (Lucky ສັ່ງ 18/07: ຫ້າມມີ 2 ບ່ອນ) */}
-        <div className={`card ${showErrors && !valid.signer ? 'card-invalid' : ''}`}>
-          <SectionHead icon={<Icon.addUser />} title="ຜູ້ລົງນາມ & ຮັບສຳເນົາ" sub={lockAll ? 'ເອກະສານລັບ — ຜູ້ອຳນວຍການເຊັນຄົນດຽວ' : chainLocked ? 'ໃຊ້ເສັ້ນທາງມາດຕະຖານ — ລ໋ອກໄວ້' : 'ເລືອກຄົນຈາກລາຍຊື່'} />
-          {lockAll ? (
-            <p className="dtype-lockmsg"><Icon.lock /> ເອກະສານລັບ ສົ່ງກົງຫາຜູ້ອຳນວຍການເທົ່ານັ້ນ — ເພີ່ມຜູ້ເຊັນ/CC ບໍ່ໄດ້ · ເສັ້ນທາງສະແດງຢູ່ກ່ອງ "ປະເພດເອກະສານ" ເທິງສຸດ</p>
-          ) : chainLocked ? (
-            <p className="dtype-lockmsg"><Icon.lock /> ຜູ້ລົງນາມ/ອະນຸມັດ ຖືກລ໋ອກຕາມເສັ້ນທາງມາດຕະຖານ — ເບິ່ງລຳດັບໄດ້ທີ່ກ່ອງ "ປະເພດເອກະສານ" ເທິງສຸດ (ຢາກເລືອກເອງ ໃຫ້ສະຫຼັບເປັນ "ເລືອກຜູ້ລົງນາມເອງ")</p>
-          ) : (
-            <button className="add-btn" onClick={() => setPickerOpen(true)}><Icon.book /> ເພີ່ມຈາກລາຍຊື່</button>
+        {/* ── ເສັ້ນທາງການເຊັນ (E7) — ຢູ່ທ້າຍຟອມ ຫຼັງກອກຂໍ້ມູນຄົບ (Lucky ເຄາະ 18/07):
+            Direct (ໃຊ້ເສັ້ນທາງມາດຕະຖານ) = ໃຊ້ຄົນທີ່ config ໃນ Tab 6 ອັດຕະໂນມັດ — ບໍ່ໂຊຫ້ອງເລືອກຄົນ
+            Dynamic (ເລືອກຜູ້ລົງນາມເອງ) = ຄ່ອຍເປີດຫ້ອງ "ຜູ້ລົງນາມ & ຮັບສຳເນົາ" ໃຫ້ເລືອກເອງ */}
+        <div className={`card ${showErrors && !valid.signer && !dynamicMode ? 'card-invalid' : ''}`}>
+          <SectionHead icon={<Icon.layers />} title="ເສັ້ນທາງການເຊັນ" sub={currentSub.lockAll ? 'ເອກະສານລັບ — ສົ່ງກົງຫາຜູ້ອຳນວຍການ' : 'ເລືອກວິທີສົ່ງ'} />
+          {!currentSub.lockAll && (
+            <div className="seg">
+              <button className={`seg-btn ${!dynamicMode ? 'on approver' : ''}`} onClick={() => toggleDynamic(false)}>ໃຊ້ເສັ້ນທາງມາດຕະຖານ</button>
+              <button className={`seg-btn ${dynamicMode ? 'on signer' : ''}`} onClick={() => toggleDynamic(true)}>ເລືອກຜູ້ລົງນາມເອງ</button>
+            </div>
           )}
+          {!dynamicMode && route.chain.length > 0 && (
+            <div className="route-preview">
+              <p className="route-preview-head"><Icon.lock /> ເສັ້ນທາງມາດຕະຖານ {route.chain.length} ຂັ້ນ{lockAll ? ' · ຫ້າມເພີ່ມຜູ້ອື່ນ ແລະ CC' : ''}</p>
+              {route.chain.map((p, i) => (
+                <div className="route-step" key={p.id}>
+                  <span className="route-step-n">{i + 1}</span>
+                  <b>{p.name}</b>
+                  <span className="route-step-role">{p.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'}</span>
+                </div>
+              ))}
+              {route.cc.length > 0 && (
+                <p className="route-preview-cc"><Icon.users /> CC ອັດຕະໂນມັດ: {route.cc.map((c) => c.name).join(', ')}</p>
+              )}
+            </div>
+          )}
+          {!dynamicMode && !currentSub.lockAll && route.chain.length === 0 && (
+            <p className="dtype-note"><Icon.warn /> ປະເພດນີ້ຍັງບໍ່ໄດ້ຕັ້ງຄ່າເສັ້ນທາງມາດຕະຖານ (Tab 6) — ກະລຸນາເລືອກ "ເລືອກຜູ້ລົງນາມເອງ"</p>
+          )}
+          {showErrors && !valid.signer && !dynamicMode && <span className="err-text">ຍັງບໍ່ມີຜູ້ລົງນາມ</span>}
+        </div>
 
-          {!(lockAll || chainLocked) && signatories.length > 0 && (
+        {/* ── ຜູ້ລົງນາມ + CC — ໂຊສະເພາະໂໝດ Dynamic (Direct ໃຊ້ config ຈາກ Tab 6 ບໍ່ຕ້ອງເລືອກ) ── */}
+        {dynamicMode && (
+        <div className={`card ${showErrors && !valid.signer ? 'card-invalid' : ''}`}>
+          <SectionHead icon={<Icon.addUser />} title="ຜູ້ລົງນາມ & ຮັບສຳເນົາ" sub="ເລືອກຄົນຈາກລາຍຊື່" />
+          <button className="add-btn" onClick={() => setPickerOpen(true)}><Icon.book /> ເພີ່ມຈາກລາຍຊື່</button>
+
+          {signatories.length > 0 && (
             <>
               <div className="order-head">
                 <span className="order-title"><Icon.layers /> ລຳດັບການລົງນາມ</span>
@@ -477,8 +478,8 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
             </>
           )}
 
-          {/* ── CC ── (ໂໝດລ໋ອກ: CC ອັດຕະໂນມັດສະແດງຢູ່ preview ກ່ອງປະເພດແລ້ວ ບໍ່ຊ້ຳຢູ່ນີ້) */}
-          {!(lockAll || chainLocked) && ccList.length > 0 && (
+          {/* ── CC ── */}
+          {ccList.length > 0 && (
             <div className="cc-block">
               <div className="cc-head"><Icon.mail /> <b>ຮັບສຳເນົາ (CC)</b> <i>· ບໍ່ຕ້ອງເຊັນ</i></div>
               {ccList.map((s) => (
@@ -501,6 +502,7 @@ export default function Step1Input({ store, me = 'A', docSubtypes, onNext, onBac
 
           {showErrors && !valid.signer && <span className="err-text">ຕ້ອງມີຜູ້ລົງນາມຢ່າງໜ້ອຍ 1 ຄົນ</span>}
         </div>
+        )}
       </div>
 
       <div className="footer">
