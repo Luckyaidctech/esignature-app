@@ -755,42 +755,57 @@ function NotiCard({ n, onOpen, onOpenReq }) {
   )
 }
 
-// ─────────── tab 6: ມອບໝາຍ (E3/E12) — มอบไปให้คนอื่น + ได้รับมอบจากคนอื่น มีตัวกรอง ───────────
+// ─────────── tab 6: ມອບໝາຍ (E3/E12) — มอบไปให้คนอื่น + ได้รับมอบจากคนอื่น ───────────
+// ตัวกรอง 2 ชั้น (Lucky 18/07): ทิศทาง (มอบไป/ได้รับมอบ) × สถานะ (ทำแล้วหรือยัง) — ทุก option ต้องมี seed รองรับ
 const ASSIGN_FILTERS = [{ k: 'all', t: 'ທັງໝົດ' }, { k: 'out', t: 'ມອບໄປ' }, { k: 'in', t: 'ໄດ້ຮັບມອບ' }]
+const ASSIGN_STATUS = [{ k: 'all', t: 'ທຸກສະຖານະ' }, { k: 'wait', t: 'ຍັງບໍ່ດຳເນີນການ' }, { k: 'done', t: 'ດຳເນີນການແລ້ວ' }, { k: 'rej', t: 'ປະຕິເສດ' }]
+const seatStatusKey = (seat) => (seat.status === 'signed' ? 'done' : seat.status === 'rejected' ? 'rej' : 'wait')
 function AssignedTab({ docs, me, onOpen }) {
   const [filter, setFilter] = useState('all')
-  const awayDocs = docs.filter((d) => d.signers.some((s) => s.id === me && s.assignedTo))
-  const inDocs = docs.filter((d) => d.signers.some((s) => s.assignedTo === me))
-  const list = filter === 'out' ? awayDocs : filter === 'in' ? inDocs : [...new Set([...awayDocs, ...inDocs])]
-  const countOf = (k) => (k === 'out' ? awayDocs.length : k === 'in' ? inDocs.length : awayDocs.length + inDocs.length)
+  const [stFilter, setStFilter] = useState('all')
+  // ໃບໜຶ່ງອາດມີທັງ "ມອບໄປ" ແລະ "ໄດ້ຮັບມອບ" — ແຍກເປັນ entry ຄົນລະອັນ ໃຫ້ສະຖານະຕົງກັບທີ່ນັ່ງນັ້ນຈິງ
+  const entries = []
+  docs.forEach((d) => {
+    d.signers.forEach((s) => {
+      if (s.id === me && s.assignedTo) entries.push({ d, seat: s, dir: 'out' })
+      if (s.assignedTo === me) entries.push({ d, seat: s, dir: 'in' })
+    })
+  })
+  const byDir = (k) => (k === 'all' ? entries : entries.filter((e) => e.dir === k))
+  const list = byDir(filter).filter((e) => stFilter === 'all' || seatStatusKey(e.seat) === stFilter)
+  const stCount = (k) => byDir(filter).filter((e) => k === 'all' || seatStatusKey(e.seat) === k).length
   return (
     <>
       <div className="req-sf">
         {ASSIGN_FILTERS.map((f) => (
-          <button key={f.k} className={`req-sf-chip ${filter === f.k ? 'on' : ''}`} onClick={() => setFilter(f.k)}>{f.t} ({countOf(f.k)})</button>
+          <button key={f.k} className={`req-sf-chip ${filter === f.k ? 'on' : ''}`} onClick={() => setFilter(f.k)}>{f.t} ({byDir(f.k).length})</button>
         ))}
       </div>
-      {list.length === 0 ? <p className="empty-list">ຍັງບໍ່ມີການມອບໝາຍ</p> : list.map((d) => {
-        const outSeat = d.signers.find((s) => s.id === me && s.assignedTo)
-        const inSeat = d.signers.find((s) => s.assignedTo === me)
-        const isOut = filter === 'in' ? false : !!outSeat
-        const seat = isOut ? outSeat : inSeat
+      <div className="req-sf">
+        {ASSIGN_STATUS.map((f) => (
+          <button key={f.k} className={`req-sf-chip ${stFilter === f.k ? 'on' : ''}`} onClick={() => setStFilter(f.k)}>{f.t} ({stCount(f.k)})</button>
+        ))}
+      </div>
+      {list.length === 0 ? <p className="empty-list">ບໍ່ມີການມອບໝາຍໃນເງື່ອນໄຂນີ້</p> : list.map(({ d, seat, dir }) => {
+        const isOut = dir === 'out'
         const counterpart = isOut ? seat.assignedTo : seat.id
+        const actLabel = seat.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'
         const sty = docTypeStyle(d)
         return (
-          <button className="req-card" key={d.id} style={{ borderLeft: `4px solid ${sty.main}` }} onClick={() => onOpen(d.id)}>
+          <button className="req-card" key={`${d.id}-${dir}-${seat.id}`} style={{ borderLeft: `4px solid ${sty.main}` }} onClick={() => onOpen(d.id)}>
             <span className="req-card-ic" style={{ background: sty.main }}><Icon.swap /></span>
             <div className="req-card-body">
               <div className="req-card-top">
                 <b>{d.title}</b>
+                {/* ສະຖານະບອກຊັດ: ຄົນທີ່ຮັບໜ້າທີ່ ດຳເນີນການແລ້ວຫຼືຍັງ (Lucky 18/07) */}
                 <span className={`req-badge ${seat.status === 'signed' ? 'done' : seat.status === 'rejected' ? 'rej' : 'wait'}`}>
-                  {seat.status === 'signed' ? 'ແລ້ວ' : seat.status === 'rejected' ? 'ປະຕິເສດ' : 'ລໍຖ້າ'}
+                  {seat.status === 'signed' ? `${actLabel}ແລ້ວ` : seat.status === 'rejected' ? 'ປະຕິເສດແລ້ວ' : `ຍັງບໍ່ໄດ້${actLabel}`}
                 </span>
               </div>
               <span className="req-card-when"><Icon.calendar /> {d.date}{d.docNo && <><Icon.doc /> {d.docNo}</>}</span>
               <div className="req-chips">
                 <span className="req-chip hl">{isOut ? `ມອບໃຫ້ ${nameOf(counterpart)}` : `ຮັບມອບຈາກ ${nameOf(counterpart)}`}</span>
-                <span className="req-chip">{seat.role === 'approver' ? 'ອະນຸມັດ' : 'ເຊັນ'}ແທນ</span>
+                <span className="req-chip">{actLabel}ແທນ</span>
               </div>
             </div>
             <Icon.chevron />

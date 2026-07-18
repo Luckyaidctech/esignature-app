@@ -355,6 +355,13 @@ export const STEP_KIND_LABEL = {
   dept: 'ຫົວໜ້າພະແນກທີ່ກຳນົດ (ຄົງທີ່)',
   person: 'ກຳນົດຄົນສະເພາະ (ຄົງທີ່)',
 }
+// ຄຳອະທິບາຍແຕ່ລະຊະນິດ — Lucky ຖາມ 18/07 ວ່າ "ຊະນິດ" ໝາຍເຖິງຫຍັງ → ຕ້ອງອະທິບາຍໃນ UI ໃຫ້ເຂົ້າໃຈເອງໄດ້
+export const STEP_KIND_DESC = {
+  creatorHead: 'ລະບົບເລືອກໃຫ້ອັດຕະໂນມັດ — ເອົາຫົວໜ້າພະແນກຂອງ "ຜູ້ສ້າງເອກະສານ" ມາໃສ່ຂັ້ນນີ້ (ປ່ຽນຄົນຕາມຜູ້ສ້າງ)',
+  president: 'ຜູ້ອຳນວຍການຄົນດຽວກັນສະເໝີ ບໍ່ວ່າໃຜເປັນຜູ້ສ້າງ',
+  dept: 'ຫົວໜ້າຂອງພະແນກທີ່ທ່ານເລືອກ — ຄົງທີ່ ບໍ່ຂຶ້ນກັບຜູ້ສ້າງ',
+  person: 'ເລືອກຄົນສະເພາະເຈາະຈົງ — ຄົງທີ່ ບໍ່ຂຶ້ນກັບຜູ້ສ້າງ',
+}
 // ຄືนเส้นทาง (No-Dynamic) ຂອງເอกสารย่อย — ใช้ subtypes state (Tab 6 แก้ได้) ไม่ใช่ DEFAULT_DOC_SUBTYPES ตรงๆ
 export function subtypeRoute(subtypeKey, meId, subtypes = DEFAULT_DOC_SUBTYPES) {
   const sub = subtypes.find((s) => s.key === subtypeKey)
@@ -410,7 +417,8 @@ export function initialDocs() {
     // [tab1] Decha ປະຕິເສດ — CARD ຖືກປະຕິເສດ
     { id: 'd16', title: 'ໃບເບີກຄ່າ ຝຶກອົບຮົມ', creatorId: 'A', date: '09/07/2026', ts: 9,
       files: [{ name: 'training_claim.pdf', pages: 2 }], attachments: [], cc: [],
-      signers: [{ id: 'B', step: 1, status: 'rejected', reason: 'ຂໍ້ມູນຄ່າໃຊ້ຈ່າຍບໍ່ຄົບ ກະລຸນາແກ້ໄຂ', role: 'approver' }, { id: 'C', step: 2, status: 'pending', role: 'approver' }],
+      // seed E3/E12: B ມອບໃຫ້ Pimlada(u1) ອະນຸມັດແທນ ແລ້ວ u1 ປະຕິເສດ → ເຄສ "ມອບໝາຍ + ປະຕິເສດ" ມີໃຫ້ເບິ່ງ
+      signers: [{ id: 'B', step: 1, status: 'rejected', reason: 'ຂໍ້ມູນຄ່າໃຊ້ຈ່າຍບໍ່ຄົບ ກະລຸນາແກ້ໄຂ', role: 'approver', assignedTo: 'u1' }, { id: 'C', step: 2, status: 'pending', role: 'approver' }],
       comments: [], status: 'rejected' },
 
     // [tab2·A] CARD: ຫຼາຍคน ບໍ່ພ້ອມກັນ (SEQ 3) + CC · done
@@ -422,7 +430,8 @@ export function initialDocs() {
     // [tab2·A] CARD: ຫຼາຍคน ມีพร้อมกัน (PARALLEL) + CC + ໄຟລ໌ແนบ · done
     { id: 'd2', title: 'ໃບອະນຸມັດງົບປະມານ ໄຕມາດ 3', creatorId: 'A', date: '11/07/2026', ts: 11,
       files: [{ name: 'q3_budget.pdf', pages: 3, summary: 'ສະຫຼຸບງົບປະມານໄຕມາດ 3 ແຍກຕາມພະແນກ ພ້ອມການວິເຄາະການໃຊ້ຈ່າຍ ທຽບກັບແຜນ.' }], attachments: [{ name: 'breakdown.xlsx' }, { name: 'chart.png' }], cc: ['E', 'D'],
-      signers: [{ id: 'B', step: 1, status: 'signed', time: '11/07 · 10:00', role: 'signer' }, { id: 'F', step: 1, status: 'signed', time: '11/07 · 10:20', role: 'signer' }, { id: 'C', step: 2, status: 'signed', time: '11/07 · 16:00', role: 'approver' }],
+      // seed E3/E12: F ມອບໃຫ້ G ເຊັນແທນ ແລະ G ເຊັນແລ້ວ → F ເຫັນ "ມອບໄປ·ແລ້ວ", G ເຫັນ "ໄດ້ຮັບມອບ·ແລ້ວ"
+      signers: [{ id: 'B', step: 1, status: 'signed', time: '11/07 · 10:00', role: 'signer' }, { id: 'F', step: 1, status: 'signed', time: '11/07 · 10:20', role: 'signer', assignedTo: 'G' }, { id: 'C', step: 2, status: 'signed', time: '11/07 · 16:00', role: 'approver' }],
       comments: [], status: 'done' },
 
     // [tab2·A] CARD: ເຊັນครบ (done, ງ่าย)

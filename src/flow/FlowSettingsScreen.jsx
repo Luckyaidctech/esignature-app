@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Icon, Header, DIRECTORY, DEPTS, RANK_TITLE, initials } from './shared.jsx'
-import { DOC_CATEGORIES, stepLabel, stepKindOf, STEP_KIND_LABEL } from '../home/data.js'
+import { DOC_CATEGORIES, stepLabel, stepKindOf, STEP_KIND_LABEL, STEP_KIND_DESC } from '../home/data.js'
 
 const slugify = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 8) || 'new'
 const BLANK_SUB = { key: '', name: '', prefix: '', category: Object.keys(DOC_CATEGORIES)[0], chain: [], cc: [], lockAll: false }
@@ -53,15 +53,20 @@ function DeptPickSheet({ open, onPick, onClose }) {
   )
 }
 
-// ─────────────── ເລືອກຊະນິດ step ───────────────
+// ─────────────── ເລືອກຊະນິດ step — ຕ້ອງມີຄຳອະທິບາຍ ບໍ່ໃຫ້ຜູ້ໃຊ້ເດົາເອງ (Lucky 18/07) ───────────────
 function KindPickSheet({ open, onPick, onClose }) {
   if (!open) return null
   return (
     <div className="fsheet-overlay" onClick={onClose}>
       <div className="fsheet" onClick={(e) => e.stopPropagation()}>
-        <p className="fsheet-title">ຊະນິດຂອງຂັ້ນຕອນນີ້</p>
+        <p className="fsheet-title">ຊະນິດຂອງຂັ້ນນີ້ — ກຳນົດວ່າ "ໃຜ" ເປັນຜູ້ກວດ/ເຊັນຂັ້ນນີ້</p>
         {Object.entries(STEP_KIND_LABEL).map(([k, label]) => (
-          <button key={k} className="sort-opt" onClick={() => onPick(k)}>{label}</button>
+          <button key={k} className="dtype-opt" onClick={() => onPick(k)}>
+            <div className="dtype-info">
+              <b>{label}</b>
+              <span style={{ whiteSpace: 'normal' }}>{STEP_KIND_DESC[k]}</span>
+            </div>
+          </button>
         ))}
       </div>
     </div>
@@ -91,6 +96,10 @@ function SubtypeEditSheet({ sub, isNew, defaultSub, onUpdate, onAdd, onDelete, o
   const [deptPickIdx, setDeptPickIdx] = useState(null)
   const [personPickIdx, setPersonPickIdx] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false) // ກັນລຶບພາດ — ຕ້ອງຢືນຢັນກ່ອນສະເໝີ
+  // CC ອັດຕະໂນມັດ (Lucky 18/07: ຕ້ອງຕັ້ງ CC ໄດ້ຢູ່ Tab 6) — ໃຊ້ step format ດຽວກັບ chain
+  const [ccKindIdx, setCcKindIdx] = useState(null)
+  const [ccDeptIdx, setCcDeptIdx] = useState(null)
+  const [ccPersonIdx, setCcPersonIdx] = useState(null)
   if (!sub) return null
 
   const cur = isNew ? draft : sub
@@ -121,6 +130,21 @@ function SubtypeEditSheet({ sub, isNew, defaultSub, onUpdate, onAdd, onDelete, o
   }
   const removeStep = (idx) => setChain(chain.filter((_, i) => i !== idx))
   const addStep = () => setChain([...chain, 'creatorHead'])
+
+  // ── CC ອັດຕະໂນມັດ — add/remove/ປ່ຽນຊະນິດ ຄືກັບ chain ──
+  const ccSteps = cur.cc || []
+  const setCc = (next) => commit({ cc: next })
+  const pickCcKind = (idx, kind) => {
+    setCcKindIdx(null)
+    if (kind === 'dept') { setCcDeptIdx(idx); return }
+    if (kind === 'person') { setCcPersonIdx(idx); return }
+    const next = [...ccSteps]; next[idx] = kind === 'president' ? 'president' : 'creatorHead'
+    setCc(next)
+  }
+  const pickCcDept = (k) => { const next = [...ccSteps]; next[ccDeptIdx] = { dept: k }; setCc(next); setCcDeptIdx(null) }
+  const pickCcPerson = (id) => { const next = [...ccSteps]; next[ccPersonIdx] = { person: id }; setCc(next); setCcPersonIdx(null) }
+  const removeCc = (idx) => setCc(ccSteps.filter((_, i) => i !== idx))
+  const addCc = () => { setCc([...ccSteps, 'creatorHead']); setCcKindIdx(ccSteps.length) }
 
   const canCreate = isNew && cur.name.trim().length > 0 && cur.prefix.trim().length > 0
   const create = () => { if (canCreate) { onAdd({ ...cur, key: slugify(cur.prefix || cur.name) }); onClose() } }
@@ -174,6 +198,27 @@ function SubtypeEditSheet({ sub, isNew, defaultSub, onUpdate, onAdd, onDelete, o
               </div>
             )
           })}
+
+          {/* ── CC ອັດຕະໂນມັດ (Lucky 18/07) — ຄົນທີ່ໄດ້ຮັບສຳເນົາທຸກໃບຂອງປະເພດນີ້ ໂດຍບໍ່ຕ້ອງເຊັນ ── */}
+          <p className="dd-section" style={{ marginTop: 12 }}><Icon.mail /> CC ອັດຕະໂນມັດ (ຮັບສຳເນົາ — ບໍ່ຕ້ອງເຊັນ)</p>
+          {ccSteps.length === 0 && <p className="muted" style={{ textAlign: 'center', padding: '10px' }}>ບໍ່ມີ CC ອັດຕະໂນມັດ — ເພີ່ມໄດ້ດ້ວຍປຸ່ມຂ້າງລຸ່ມ</p>}
+          {ccSteps.map((step, idx) => {
+            const info = stepLabel(step)
+            return (
+              <div className="dir-row chain-row" key={idx}>
+                <div className="dir-avatar rk-staff">CC</div>
+                <div className="dir-info">
+                  <b>{info.label}</b>
+                  <span>{info.person ? info.person.name : 'ຂຶ້ນກັບຜູ້ສ້າງເອກະສານ (dynamic)'}</span>
+                </div>
+                <div className="dir-actions chain-actions">
+                  <button className="pick-btn approver" onClick={() => setCcKindIdx(idx)}>ຊະນິດ</button>
+                  <button className="pick-btn cc" onClick={() => removeCc(idx)}><Icon.trash /></button>
+                </div>
+              </div>
+            )
+          })}
+          <button className="btn ghost" style={{ width: '100%', marginTop: 4 }} onClick={addCc}><Icon.plus /> ເພີ່ມ CC</button>
         </div>
         <button className="btn ghost" style={{ width: '100%', marginTop: 8 }} onClick={addStep}><Icon.plus /> ເພີ່ມຂັ້ນຕອນ</button>
 
@@ -208,6 +253,10 @@ function SubtypeEditSheet({ sub, isNew, defaultSub, onUpdate, onAdd, onDelete, o
       <KindPickSheet open={kindPickIdx !== null} onPick={(k) => pickKind(kindPickIdx, k)} onClose={() => setKindPickIdx(null)} />
       <DeptPickSheet open={deptPickIdx !== null} onPick={pickDept} onClose={() => setDeptPickIdx(null)} />
       <PersonPickSheet open={personPickIdx !== null} onPick={pickPerson} onClose={() => setPersonPickIdx(null)} />
+      {/* pick sheets ຊຸດ CC — ແຍກ index ຈາກ chain */}
+      <KindPickSheet open={ccKindIdx !== null} onPick={(k) => pickCcKind(ccKindIdx, k)} onClose={() => setCcKindIdx(null)} />
+      <DeptPickSheet open={ccDeptIdx !== null} onPick={pickCcDept} onClose={() => setCcDeptIdx(null)} />
+      <PersonPickSheet open={ccPersonIdx !== null} onPick={pickCcPerson} onClose={() => setCcPersonIdx(null)} />
     </div>
   )
 }
