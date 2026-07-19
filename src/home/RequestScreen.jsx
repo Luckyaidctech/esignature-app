@@ -63,7 +63,7 @@ export function ReqCard({ r, kind, showBy, accent, kindLabel, onOpen }) {
 }
 
 // ── ປະຫວັດກິດຈະກຳ (Lucky 19/07): ຍ້າຍໄປປຸ່ມ (i) ເທິງ header ແລ້ວ ──
-export function ReqActivityModal({ req, chain = [], createLabel = 'ສ້າງຄຳຂໍ', onClose }) {
+export function ReqActivityHistory ({ req, chain = [], createLabel = 'ສ້າງຄຳຂໍ', onClose }) {
   const by = req.byId || req.by
   const hist = req.history || []
   const histOf = (type, nth = 0) => hist.filter((h) => h.type === type)[nth]
@@ -328,7 +328,7 @@ export default function RequestScreen({ me, director, reqs, onReqAction, onCreat
         </div>
 
         {showHistory && (
-          <ReqActivityModal req={live} chain={chain} onClose={() => setShowHistory(false)} />
+          <ReqActivityHistory req={live} chain={chain} onClose={() => setShowHistory(false)} />
         )}
         {rejMode && (
           <ReasonModal title="ປະຕິເສດຄຳຂໍ" hint="ກະລຸນາລະບຸເຫດຜົນ (ຜູ້ຂໍຈະໄດ້ຮັບການແຈ້ງເຕືອນ)"
