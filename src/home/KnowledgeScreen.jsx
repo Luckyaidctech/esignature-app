@@ -3,6 +3,7 @@ import { Icon, Header, ResultPopup, ReasonModal, initials, ScreenPortal } from '
 import { nameOf, colorOf, avatarOf, approvalChain, approvedCount, sortPendingFirst, KN_CATS, KN_TYPES, KN_STATUS } from './data.js'
 import KnowledgeForm from './KnowledgeForm.jsx'
 import CommentBox from './CommentBox.jsx'
+import { ReqActivityHistory } from './RequestScreen.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
 
 const avBg = (id) => { const u = avatarOf(id); return u ? { backgroundImage: `url("${u}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: colorOf(id) } }
@@ -147,6 +148,9 @@ export function KnowledgeDetailBody({ post, me, onPreview }) {
         </div>
       </div>
     )}
+
+    {/* ປະຫວັດກິດຈະກຳ — ໃຜເຮັດຫຍັງ ເມື່ອໃດ (Lucky 19/07 — ທຸກຄຳຂໍ/ໂພສ) */}
+    <ReqActivityHistory req={post} chain={chain} createLabel="ສ້າງໂພສ" />
   </>)
 }
 

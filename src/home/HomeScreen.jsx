@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Icon, initials, Header, ResultPopup, ReasonModal, ScreenPortal, DIRECTORY } from '../flow/shared.jsx'
-import RequestScreen, { REQ_KINDS, KIND_META, ReqCard, RequestDetailBody } from './RequestScreen.jsx'
+import RequestScreen, { REQ_KINDS, KIND_META, ReqCard, RequestDetailBody, ReqActivityHistory } from './RequestScreen.jsx'
 import KnowledgeScreen, { KnowledgeDetailBody } from './KnowledgeScreen.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
 import { USERS, nameOf, colorOf, progress, isMyTurn, actingId, isInvolved, avatarOf, rolesLabel, sortPendingFirst, currentApprover, DOC_TYPES, docTypeOf, docTypeStyle, DOC_TYPE_STYLE, visibleDocs } from './data.js'
@@ -631,6 +631,8 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
                       <div className={`ptd-tl-item ${detailReq.status !== 'progress' ? 'done' : 'now'}`}><span className={`ptd-tl-dot ${detailReq.status === 'rejected' ? 'rej' : ''}`}>{detailReq.status === 'approved' ? <Icon.check /> : detailReq.status === 'rejected' ? <Icon.x /> : <Icon.clock />}</span><div><b>{detailReq.status === 'approved' ? 'ອະນຸມັດແລ້ວ' : detailReq.status === 'rejected' ? 'ຖືກປະຕິເສດ' : 'ລໍຖ້າອະນຸມັດ'}</b><span>{nameOf(director)}</span></div></div>
                     </div>
                   </div>
+                  {/* ປະຫວັດກິດຈະກຳ — ໃຜເຮັດຫຍັງ ເມື່ອໃດ (Lucky 19/07 — ທຸກຄຳຂໍ) */}
+                  <ReqActivityHistory req={detailReq} chain={[{ id: director, name: nameOf(director), role: 'ຜູ້ອຳນວຍການ' }]} />
                 </>)
               })() : (
                 // ຄຳຂໍທົ່ວໄປ (ລາພັກ/ວຽກນອກ/ໂອທີ/ຈອງ/ຄວາມຮູ້) → ໃຊ້ໜ້າດຽວກັບໂມດູນ "ຄຳຂໍ" 100%

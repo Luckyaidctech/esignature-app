@@ -181,7 +181,8 @@ export default function App() {
   const onPointsDeleteComment = (reqId, cmtId) => setPointsReqs((ps) => ps.map((p) => p.id === reqId
     ? { ...p, comments: p.comments.filter((c) => c.id !== cmtId && c.parentId !== cmtId) } : p))
   const onPointsAction = (id, action, reason) => {
-    setPointsReqs((ps) => ps.map((p) => p.id === id ? { ...p, status: action, reason } : p))
+    setPointsReqs((ps) => ps.map((p) => p.id === id
+      ? { ...p, status: action, reason, history: [...(p.history || []), { type: action, by: me, time: 'ຕອນນີ້', reason }] } : p))
     const r = pointsReqs.find((p) => p.id === id)
     if (r && r.by !== me) pushNoti(r.by, action === 'approved'
       ? `ຄຳຂໍ +${r.points} ຄະແນນ (${r.targetName}) ໄດ້ຮັບອະນຸມັດ`
@@ -327,7 +328,9 @@ export default function App() {
     const done = action === 'approved' ? [...(r.approvedBy || []), me] : (r.approvedBy || [])
     const finished = action !== 'approved' || done.length >= chain.length
     const status = finished ? action : 'progress'
-    setReqs((rs) => ({ ...rs, [kind]: (rs[kind] || []).map((x) => (x.id === id ? { ...x, status, reason, approvedBy: done } : x)) }))
+    // ປະຫວັດກິດຈະກຳ (Lucky 19/07): ທຸກ action ບັນທຶກ ໃຜ/ຫຍັງ/ເມື່ອໃດ ໃສ່ r.history
+    setReqs((rs) => ({ ...rs, [kind]: (rs[kind] || []).map((x) => (x.id === id
+      ? { ...x, status, reason, approvedBy: done, history: [...(x.history || []), { type: action, by: me, time: 'ຕອນນີ້', reason }] } : x)) }))
     if (!finished) {
       const next = chain[done.length]
       if (next && next.id !== me) pushNoti(next.id, `ຮອດຮອບຂອງທ່ານແລ້ວ — ກະລຸນາອະນຸມັດຄຳຂໍ "${r.title}" (ຂັ້ນ ${done.length + 1}/${chain.length})`, null, 'sign', { kind, id })
@@ -379,7 +382,8 @@ export default function App() {
   // ── ຄວາມຮູ້ (Knowledge Sharing) — ເກັບໃນ reqs.knowledge → ໃຊ້ onReqAction/onReqComment ຮ່ວມກັນໄດ້ ──
   // ບັນທຶກຮ່າງ (draft) = ບໍ່ແຈ້ງໃຜ · ສົ່ງກວດສອບ (progress) = ແຈ້ງຜູ້ອະນຸມັດຂັ້ນທຳອິດ
   const onCreateKn = (data, publish) => {
-    const r = { id: uid(), byId: me, status: publish ? 'progress' : 'draft', createdAt: nowDate(), views: 0, likes: [], comments: [], ...data }
+    const r = { id: uid(), byId: me, status: publish ? 'progress' : 'draft', createdAt: nowDate(), views: 0, likes: [], comments: [],
+      history: publish ? [{ type: 'submitted', by: me, time: 'ຕອນນີ້' }] : [], ...data }
     setReqs((rs) => ({ ...rs, knowledge: [r, ...(rs.knowledge || [])] }))
     if (publish) {
       const first = approvalChain(me, 'knowledge')[0]
@@ -389,7 +393,8 @@ export default function App() {
   }
   // ສົ່ງຮ່າງທີ່ບັນທຶກໄວ້ ໄປກວດສອບ
   const onSubmitKn = (id) => {
-    setReqs((rs) => ({ ...rs, knowledge: (rs.knowledge || []).map((r) => (r.id === id ? { ...r, status: 'progress' } : r)) }))
+    setReqs((rs) => ({ ...rs, knowledge: (rs.knowledge || []).map((r) => (r.id === id
+      ? { ...r, status: 'progress', history: [...(r.history || []), { type: 'submitted', by: me, time: 'ຕອນນີ້' }] } : r)) }))
     const r = (reqs.knowledge || []).find((x) => x.id === id)
     const first = approvalChain(me, 'knowledge')[0]
     if (r && first && first.id !== me) pushNoti(first.id, `${nameOf(me)} ສົ່ງໂພສ "${r.title}" ລໍຖ້າກວດສອບ`, null, 'sign', { kind: 'knowledge', id })
@@ -400,7 +405,8 @@ export default function App() {
 
   // ຜູ້ຂໍຍົກເລີກຄຳຂໍຂອງຕົນເອງ → ແຈ້ງຜູ້ອະນຸມັດທີ່ກ່ຽວຂ້ອງແລ້ວ (ເຄີຍໄດ້ noti ຄິວ) ບໍ່ໃຫ້ອະນຸມັດຄ້າງ
   const onCancelReq = (kind, id, reason) => {
-    setReqs((rs) => ({ ...rs, [kind]: (rs[kind] || []).map((r) => (r.id === id ? { ...r, status: 'cancelled', reason } : r)) }))
+    setReqs((rs) => ({ ...rs, [kind]: (rs[kind] || []).map((r) => (r.id === id
+      ? { ...r, status: 'cancelled', reason, history: [...(r.history || []), { type: 'cancelled', by: me, time: 'ຕອນນີ້', reason }] } : r)) }))
     const r = (reqs[kind] || []).find((x) => x.id === id)
     if (!r) return
     approvalChain(r.byId, kind).slice(0, approvedCount(r) + 1).forEach((p) => {

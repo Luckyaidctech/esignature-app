@@ -67,6 +67,49 @@ export function ReqCard({ r, kind, showBy, accent, kindLabel, onOpen }) {
 }
 
 // ── ເນື້ອໃນໜ້າລາຍລະອຽດຄຳຂໍ — ໃຊ້ຮ່ວມ 2 ໂມດູນ (ຄຳຂໍ · ການອະນຸມັດ) ໃຫ້ໜ້າຕາຄືກັນ 100% ──
+// ── ປະຫວັດກິດຈະກຳ (Lucky 19/07): ທຸກຄຳຂໍບັນທຶກ ໃຜເຮັດຫຍັງ ເມື່ອໃດ — ໃຊ້ຮ່ວມ ຄຳຂໍທົ່ວໄປ/ຄວາມຮູ້/ຄະແນນ ──
+// event ຈິງເກັບໃນ req.history (App append ຕອນ action) · seed ເກົ່າບໍ່ມີ history → ອະນຸມານຈາກ approvedBy/chain/status
+export function ReqActivityHistory({ req, chain = [], createLabel = 'ສ້າງຄຳຂໍ' }) {
+  const by = req.byId || req.by
+  const hist = req.history || []
+  const histOf = (type, nth = 0) => hist.filter((h) => h.type === type)[nth]
+  const okCount = req.status === 'approved' ? (chain.length || approvedCount(req)) : approvedCount(req)
+  const ev = [{ ic: Icon.doc, t: `${createLabel} ໂດຍ ${nameOf(by)}`, tm: req.createdAt || req.date, ok: true }]
+  if (req.status === 'draft') {
+    ev.push({ ic: Icon.clock, t: 'ຍັງເປັນຮ່າງ — ຍັງບໍ່ໄດ້ສົ່ງກວດສອບ', tm: '' })
+  } else {
+    const sub = histOf('submitted')
+    if (sub) ev.push({ ic: Icon.send, t: `ສົ່ງກວດສອບ ໂດຍ ${nameOf(sub.by)}`, tm: sub.time, ok: true })
+    chain.slice(0, okCount).forEach((p, i) => {
+      // ຜູ້ອະນຸມັດຈິງ = approvedBy[i] (ຮັບມອບ/ແທນກັນໄດ້) — seed ເກົ່າບໍ່ມີ → ໃຊ້ຊື່ຕາມ chain
+      const who = (req.approvedBy || [])[i]
+      ev.push({ ic: Icon.checkCircle, t: `${who ? nameOf(who) : p.name} ອະນຸມັດແລ້ວ`, tm: histOf('approved', i)?.time || req.date, ok: true })
+    })
+    if (req.status === 'rejected') {
+      const h = histOf('rejected')
+      ev.push({ ic: Icon.warn, t: `${h ? nameOf(h.by) : chain[okCount]?.name || 'ຜູ້ອະນຸມັດ'} ປະຕິເສດ${req.reason ? ` — ${req.reason}` : ''}`, tm: h?.time || req.date, rej: true })
+    } else if (req.status === 'cancelled') {
+      const h = histOf('cancelled')
+      ev.push({ ic: Icon.warn, t: `${nameOf(h?.by || by)} ຍົກເລີກຄຳຂໍ${req.reason ? ` — ${req.reason}` : ''}`, tm: h?.time || req.date, rej: true })
+    } else if (req.status === 'progress' && chain[okCount]) {
+      ev.push({ ic: Icon.clock, t: `ລໍຖ້າ ${chain[okCount].name} ອະນຸມັດ`, tm: 'ຕອນນີ້', now: true })
+    }
+  }
+  return (
+    <div className="ptd-tl-card">
+      <p className="ptd-card-label"><Icon.info /> ປະຫວັດກິດຈະກຳ</p>
+      <div className="dd-audit">
+        {ev.map((e, i) => (
+          <div className={`aud ${e.ok ? 'ok' : e.rej ? 'rej' : e.now ? 'now' : ''}`} key={i}>
+            <span className="aud-ic"><e.ic /></span>
+            <div className="aud-body"><span className="aud-t">{e.t}</span>{e.tm && <span className="aud-tm">{e.tm}</span>}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function RequestDetailBody({ req, kind, me, onPreview, onComment, onEditComment, onDeleteComment }) {
   const k = KIND_META[kind] || KIND_META.leave
   const st = REQ_STATUS[req.status] || REQ_STATUS.progress
@@ -206,6 +249,9 @@ export function RequestDetailBody({ req, kind, me, onPreview, onComment, onEditC
         })}
       </div>
     </div>
+
+    {/* ປະຫວັດກິດຈະກຳ — ໃຜເຮັດຫຍັງ ເມື່ອໃດ ທຸກຄຳຂໍ (Lucky 19/07) */}
+    <ReqActivityHistory req={req} chain={chain} />
 
     {/* ຄວາມຄິດເຫັນ — ກ່ອງດຽວກັບຂໍລາຍເຊັນ (ຕອບກັບ · ແກ້ໄຂ · ລຶບ · @mention · ແນບໄຟລ໌) */}
     {onComment && (
