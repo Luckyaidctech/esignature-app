@@ -1024,12 +1024,12 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
       <div className="home-header">
         <div className="home-title-row">
           <h1>{TITLE[nav] || 'My e-Signature'}</h1>
-          {/* user pill ຢູ່ຊ້າຍ (Lucky ສັ່ງ) — ລາຍງານ ກາຍເປັນ tab 5 ແລ້ວ ເຫຼືອປຸ່ມ ຕັ້ງຄ່າ */}
-          <div className="home-actions right">
-            {nav === 'sign' && <button className="home-iconbtn" onClick={onOpenSettings} title="ຕັ້ງຄ່າ"><Icon.gear /></button>}
-          </div>
+          {/* user pill ຍ້າຍໄปຂວາ (Lucky 19/07) — ຊ້າຍເຫຼືອປຸ່ມກັບ Dashboard */}
           <div className="home-actions left">
             {inModule && <button className="home-iconbtn" onClick={() => setNav('dash')} title="ກັບ Dashboard"><Icon.back /></button>}
+          </div>
+          <div className="home-actions right">
+            {nav === 'sign' && <button className="home-iconbtn" onClick={onOpenSettings} title="ຕັ້ງຄ່າ"><Icon.gear /></button>}
             <div className="user-wrap">
               <button className="user-pill" onClick={() => setUserMenu((o) => !o)}>
                 <span className="user-pill-av" style={avBg(me)}>{!avatarOf(me) && initials(nameOf(me))}</span>
@@ -1037,7 +1037,7 @@ export default function HomeScreen({ me, setMe, docs, notis, pointsReqs = [], di
               </button>
               {userMenu && (<>
                 <div className="sort-backdrop" onClick={() => setUserMenu(false)} />
-                <div className="user-menu left">
+                <div className="user-menu">
                   {/* ໂປຣໄຟລ໌ຂອງຂ້ອຍ — ຍ້າຍມາຈາກ tab ລຸ່ມ (ໄດ້ slot ໃຫ້ "ຄວາມຮູ້") */}
                   <div className="user-me">
                     <span className="user-opt-av lg" style={avBg(me)}>{!avatarOf(me) && initials(nameOf(me))}</span>
