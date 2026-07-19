@@ -298,8 +298,8 @@ export default function RequestScreen({ me, director, reqs, onReqAction, onCreat
         <Header 
           title="ລາຍລະອຽດຄຳຂໍ" 
           onBack={closeDetail} 
-          rightElement={
-            <button className="icon-mini" onClick={() => setShowHistory(true)}>
+          right={
+            <button className="icon-mini" title="ປະຫວັດກິດຈະກຳ" onClick={() => setShowHistory(true)}>
               <Icon.info />
             </button>
           }

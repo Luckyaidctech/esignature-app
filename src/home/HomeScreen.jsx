@@ -3,7 +3,7 @@ import { Icon, initials, Header, ResultPopup, ReasonModal, ScreenPortal, DIRECTO
 import RequestScreen, { REQ_KINDS, KIND_META, ReqCard, RequestDetailBody, ReqActivityHistory } from './RequestScreen.jsx'
 import KnowledgeScreen, { KnowledgeDetailBody } from './KnowledgeScreen.jsx'
 import FilePreviewModal from '../flow/FilePreviewModal.jsx'
-import { USERS, nameOf, colorOf, progress, isMyTurn, actingId, isInvolved, avatarOf, rolesLabel, sortPendingFirst, currentApprover, DOC_TYPES, docTypeOf, docTypeStyle, DOC_TYPE_STYLE, visibleDocs } from './data.js'
+import { USERS, nameOf, colorOf, progress, isMyTurn, actingId, isInvolved, avatarOf, rolesLabel, sortPendingFirst, currentApprover, approvalChain, DOC_TYPES, docTypeOf, docTypeStyle, DOC_TYPE_STYLE, visibleDocs } from './data.js'
 import PointsRequest from './PointsRequest.jsx'
 import CommentBox from './CommentBox.jsx'
 
@@ -468,6 +468,7 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
   const [acPreview, setAcPreview] = useState(null) // ໄຟລ໌ແນບ ທີ່ກຳລັງເປີດເບິ່ງ
   const [rejMode, setRejMode] = useState(false)
   const [cancelMode, setCancelMode] = useState(false)
+  const [showAcHistory, setShowAcHistory] = useState(false) // ปะหวัดกิดจะกำ (i) — leave/offsite/ot/booking (Lucky 19/07)
   const acAct = (m) => { setAcDetail(null); setRejMode(false); setAcFlash(m); setTimeout(() => setAcFlash(''), 2200) }
   // เปิด detail ของ req ที่เพิ่งสร้าง (หลังกด "ເບิ่งรายละเอียด")
   useEffect(() => {
@@ -597,10 +598,21 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
       {list.length === 0 ? <p className="empty-list">ບໍ່ມີຄຳຂໍ</p> : list.map(Card)}
       <p className="ac-note">* ໂອທີ, ລາພັກ, ການຈອງ, ຄວາມຮູ້, ຄະແນນ = request ຈາກ Superwork (ຕົວຢ່າງ)</p>
       {acFlash && <div className="ac-flash"><Icon.checkCircle /> {acFlash}</div>}
-      {acDetail && (
+      {acDetail && (() => {
+        // ປະຫວັດກິດຈະກຳ (i): esign ມີໜ້າຂອງຕົນເອງ (DocDetail.jsx) · points/knowledge ໂຊ inline ໃນ body ຢູ່ແລ້ວ
+        // → ຍັງເຫຼືອ leave/offsite/ot/booking ທີ່ຍັງບໍ່ມີ (Lucky 19/07: ຕິ — ຕ້ອງເພີ່ມໃຫ້ຄົບ)
+        const showHistoryBtn = acDetail.kind && KIND_META[acDetail.kind] && acDetail.kind !== 'knowledge'
+        const liveKindReq = showHistoryBtn ? ((reqs[acDetail.kind] || []).find((r) => r.id === acDetail.id) || acDetail) : null
+        const acChain = liveKindReq ? approvalChain(liveKindReq.byId, acDetail.kind) : []
+        return (
         <ScreenPortal>
         <div className="app ac-detail-screen">
-          <Header title="ລາຍລະອຽດຄຳຂໍ" onBack={() => { setAcDetail(null); setRejMode(false) }} />
+          <Header title="ລາຍລະອຽດຄຳຂໍ" onBack={() => { setAcDetail(null); setRejMode(false); setShowAcHistory(false) }}
+            right={showHistoryBtn ? (
+              <button className="icon-mini" title="ປະຫວັດກິດຈະກຳ" onClick={() => setShowAcHistory(true)}>
+                <Icon.info />
+              </button>
+            ) : undefined} />
           <div className="scroll">
             <div className="ac-detail">
               {detailReq ? (() => {
@@ -719,9 +731,14 @@ function ApprovalCenter({ docs, me, onOpen, pointsReqs = [], director, onPointsC
             <ResultPopup danger={!!acPopup.danger} title={acPopup.msg} desc="ລະບົບໄດ້ບັນທຶກ ແລະ ແຈ້ງເຕືອນຜູ້ກ່ຽວຂ້ອງແລ້ວ"
               onOk={() => { setAcPopup(null); setAcDetail(null); setRejMode(false) }} />
           )}
+          {/* ປະຫວັດກິດຈະກຳ — leave/offsite/ot/booking (Lucky 19/07: ເພີ່ມໃຫ້ຄົບທຸກປະເພດຄຳຂໍ) */}
+          {showAcHistory && liveKindReq && (
+            <ReqActivityHistory req={liveKindReq} chain={acChain} onClose={() => setShowAcHistory(false)} />
+          )}
         </div>
         </ScreenPortal>
-      )}
+        )
+      })()}
     </>
   )
 }
