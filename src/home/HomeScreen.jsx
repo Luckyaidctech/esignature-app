@@ -881,10 +881,12 @@ function AssignedTab({ docs, me, onOpen }) {
 }
 
 // ─────────── Dashboard (tab หลัก — Lucky 19/07: shell ใหม่ 4 tabs, อิง visual แอป Superwork จริง) ───────────
-// tile น้ำเงินเดียว (#1f3fb5) + ไอคอนขาว + badge แดงนับงานค้าง — แบบแอปจริง แต่มีแค่ 4 module ตามสั่ง
+// tile น้ำเงินเดียว (#1f3fb5) + ไอคอนขาว — แบบแอปจริง แต่มีแค่ 4 module ตามสั่ง
+// badge นับงานค้างเฉพาะ Approvals + e-Sign (จำนวนรอเซ็น/รออนุมัติ) — Requests/Knowledge เป็นที่ user สร้างเอง
+// คำขอที่รอเราอนุมัติไปโผล่ที่ Approval อยู่แล้ว → ไม่ต้องมีเลข (Lucky 19/07)
 const DASH_MODULES = [
-  { key: 'approve', label: 'Approvals', icon: Icon.checkCircle },
-  { key: 'sign', label: 'My e-Signature', icon: Icon.pen },
+  { key: 'approve', label: 'Approvals', icon: Icon.checkCircle, showCount: true },
+  { key: 'sign', label: 'My e-Signature', icon: Icon.pen, showCount: true },
   { key: 'request', label: 'Requests', icon: Icon.reqDoc },
   { key: 'knowledge', label: 'Knowledge', icon: Icon.bulb },
 ]
@@ -917,7 +919,7 @@ function DashboardTab({ me, counts, onOpenModule }) {
             <button key={m.key} className="dash-mod" onClick={() => onOpenModule(m.key)}>
               <span className="dash-mod-ic">
                 {m.icon()}
-                {counts[m.key] > 0 && <span className="dash-mod-badge">{counts[m.key]}</span>}
+                {m.showCount && counts[m.key] > 0 && <span className="dash-mod-badge">{counts[m.key]}</span>}
               </span>
               <span className="dash-mod-lbl">{m.label}</span>
             </button>
